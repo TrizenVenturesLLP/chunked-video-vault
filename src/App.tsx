@@ -14,6 +14,8 @@ import FAQ from "./pages/instructor/FAQ";
 import VideoUpload from "./pages/instructor/VideoUpload";
 import InstructorGuidelines from "./pages/instructor/InstructorGuidelines";
 import LiveSessions from "./pages/instructor/LiveSessions";
+import Messages from "./pages/instructor/Messages";
+import Settings from "./pages/instructor/Settings";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +37,8 @@ const App = () => (
             <Route path="videos" element={<VideoUpload />} />
             <Route path="guidelines" element={<InstructorGuidelines />} />
             <Route path="sessions" element={<LiveSessions />} />
+            <Route path="messages" element={<Messages />} />
+            <Route path="settings" element={<Settings />} />
             {/* Add other instructor routes here */}
           </Route>
           
