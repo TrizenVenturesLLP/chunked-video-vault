@@ -22,7 +22,7 @@ import InstructorGuidelines from './pages/instructor/InstructorGuidelines';
 import Settings from './pages/instructor/Settings';
 import Support from './pages/instructor/Support';
 import NotFound from './pages/NotFound';
-import InstructorLayout from './components/layout/InstructorLayout';
+import InstructorLayout from './pages/InstructorLayout';
 import PendingApproval from './pages/PendingApproval';
 import EditCourse from './pages/instructor/EditCourse';
 
