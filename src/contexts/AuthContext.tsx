@@ -54,6 +54,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   // Check if user is already logged in on mount
   useEffect(() => {
@@ -94,6 +95,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         title: "Login successful",
         description: `Welcome back, ${response.data.user.name}!`
       });
+      
+      // Navigate based on role
+      if (response.data.user.role === 'instructor') {
+        navigate('/instructor/dashboard');
+      } else {
+        navigate('/dashboard');
+      }
       
       return;
     } catch (error: any) {
@@ -136,6 +144,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           : "Your account has been successfully created."
       });
       
+      // Navigate based on role and status
+      if (data.role === 'instructor') {
+        navigate('/pending-approval');
+      } else {
+        navigate('/dashboard');
+      }
+      
       return;
     } catch (error: any) {
       console.error("Signup error:", error);
@@ -151,6 +166,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       title: "Logged out",
       description: "You have been successfully logged out."
     });
+    navigate('/login');
   };
 
   return (

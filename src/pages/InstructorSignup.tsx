@@ -4,7 +4,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff, ArrowLeft, BookOpen } from 'lucide-react';
@@ -45,6 +44,7 @@ const InstructorSignup = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const form = useForm<InstructorFormValues>({
     resolver: zodResolver(instructorFormSchema),
@@ -60,6 +60,7 @@ const InstructorSignup = () => {
 
   const handleSubmit = async (values: InstructorFormValues) => {
     setIsLoading(true);
+    setError(null);
     
     try {
       const signupData = {
@@ -68,7 +69,7 @@ const InstructorSignup = () => {
         password: values.password,
         role: 'instructor' as const,
         specialty: values.specialty,
-        experience: Number(values.experience) || 0
+        experience: values.experience
       };
 
       await signup(signupData);
@@ -78,11 +79,12 @@ const InstructorSignup = () => {
         description: "Your instructor application has been submitted successfully.",
       });
       
-      // Navigate to pending approval page
-      navigate('/pending-approval');
+      // Navigate to pending approval page is handled in AuthContext
     } catch (error: any) {
       console.error("Signup error:", error);
       const errorMessage = error.message || 'Failed to create account. Please try again.';
+      
+      setError(errorMessage);
       
       toast({
         title: "Signup failed",
@@ -118,6 +120,12 @@ const InstructorSignup = () => {
         <p className="mt-2 text-center text-sm text-gray-600">
           Join our teaching community and share your knowledge with students worldwide
         </p>
+
+        {error && (
+          <Alert className="mt-4 bg-red-50 border-red-200 text-red-800 w-full max-w-md">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
         <Card className="w-full max-w-md mt-8">
           <CardContent className="pt-6">
