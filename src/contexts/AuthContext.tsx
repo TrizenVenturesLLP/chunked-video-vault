@@ -56,18 +56,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const token = localStorage.getItem('auth_token');
     
     if (token) {
-      // Verify token and get user data
-      axios.get('/auth/me')
-        .then(response => {
-          setUser(response.data.user);
-        })
-        .catch(() => {
-          // If token is invalid, clear it
+      // In a real application, we would verify the token with the backend
+      // For now, let's retrieve mock user data from local storage if available
+      const storedUser = localStorage.getItem('user_data');
+      if (storedUser) {
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          setUser(parsedUser);
+        } catch (error) {
+          // If JSON parsing fails, clear the invalid data
           localStorage.removeItem('auth_token');
-        })
-        .finally(() => {
-          setLoading(false);
-        });
+          localStorage.removeItem('user_data');
+        }
+      }
+      setLoading(false);
     } else {
       setLoading(false);
     }
@@ -75,115 +77,119 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = async (email: string, password: string) => {
     try {
-      // Adding mock static data for development purposes
-      if (email === 'test@example.com' && password === 'password') {
-        const mockUser: User = {
-          id: '12345',
-          name: 'Test User',
-          email: 'test@example.com',
-          role: 'instructor',
-          status: 'active',
-          displayName: 'Test Instructor',
-          instructorProfile: {
-            specialty: 'Web Development',
-            experience: 5
-          }
-        };
+      // For development purposes, let's use mock authentication for any email/password
+      // In production, this would validate against a real backend
+      
+      // Mock login for demonstration purposes - works with any email/password
+      // But using specific test values for consistency
+      if (email && password) {
+        // If it's our test account, use predefined data
+        let mockUser: User;
         
-        // Store mock token
-        localStorage.setItem('auth_token', 'mock-token-12345');
+        if (email === 'test@example.com' && password === 'password') {
+          mockUser = {
+            id: '12345',
+            name: 'Test User',
+            email: 'test@example.com',
+            role: 'instructor',
+            status: 'active',
+            displayName: 'Test Instructor',
+            instructorProfile: {
+              specialty: 'Web Development',
+              experience: 5
+            }
+          };
+        } else if (email.includes('instructor')) {
+          // For any email with 'instructor', create an instructor account
+          mockUser = {
+            id: `user-${Date.now()}`,
+            name: email.split('@')[0],
+            email: email,
+            role: 'instructor',
+            status: 'active',
+            displayName: email.split('@')[0],
+            instructorProfile: {
+              specialty: 'General',
+              experience: 1
+            }
+          };
+        } else {
+          // Default to student account
+          mockUser = {
+            id: `user-${Date.now()}`,
+            name: email.split('@')[0],
+            email: email,
+            role: 'student',
+            status: 'active',
+            displayName: email.split('@')[0]
+          };
+        }
+        
+        // Store mock token and user data
+        localStorage.setItem('auth_token', `mock-token-${mockUser.id}`);
+        localStorage.setItem('user_data', JSON.stringify(mockUser));
         setUser(mockUser);
-        return mockUser;
+        
+        toast({
+          title: "Login successful",
+          description: `Welcome back, ${mockUser.name}!`
+        });
+        
+        return;
       }
       
-      const response = await axios.post('/auth/login', { email, password });
-      const { token, user } = response.data;
-      
-      localStorage.setItem('auth_token', token);
-      
-      // Store user data
-      setUser(user);
-      
-      // Check if the instructor account is pending
-      if (user.role === 'instructor' && user.status === 'pending') {
-        throw new Error('Your instructor account is still pending approval.');
-      }
-      
-      return user;
+      throw new Error('Email and password are required');
     } catch (error: any) {
       console.error("Login error:", error);
-      const message = error.response?.data?.message || error.message || 'Login failed';
+      const message = error.message || 'Login failed';
       throw new Error(message);
     }
   };
 
   const signup = async (data: SignupData) => {
     try {
-      // Adding mock signup functionality for development
-      if (data.email.includes('@example.com')) {
-        const mockUser: User = {
-          id: '12345',
-          name: data.name,
-          email: data.email,
-          role: data.role,
-          status: data.role === 'instructor' ? 'pending' : 'active',
-          displayName: data.name
-        };
-        
-        if (data.role === 'instructor') {
-          mockUser.instructorProfile = {
-            specialty: data.specialty || 'General',
-            experience: data.experience || 0
-          };
-        }
-        
-        // Store mock token
-        localStorage.setItem('auth_token', 'mock-token-12345');
-        setUser(mockUser);
-        return mockUser;
-      }
+      // Using mock signup functionality for development
+      // In production, this would send data to a real backend
       
-      let response;
+      const mockUser: User = {
+        id: `user-${Date.now()}`,
+        name: data.name,
+        email: data.email,
+        role: data.role,
+        status: data.role === 'instructor' ? 'pending' : 'active',
+        displayName: data.name
+      };
       
-      // Format the data for instructor signup to match the required MongoDB structure
       if (data.role === 'instructor') {
-        const instructorData = {
-          name: data.name,
-          displayName: data.name, // Set displayName same as name initially
-          email: data.email,
-          password: data.password,
-          role: 'instructor',
-          status: 'pending', // New instructors start with pending status
-          bio: '',
-          timezone: 'UTC',
-          instructorProfile: {
-            specialty: data.specialty || '',
-            experience: data.experience || 0
-          }
+        mockUser.instructorProfile = {
+          specialty: data.specialty || 'General',
+          experience: data.experience || 0
         };
-        
-        // Update the endpoint to match the backend API route
-        response = await axios.post('/auth/signup', instructorData);
-      } else {
-        // Use regular signup endpoint for students
-        response = await axios.post('/auth/signup', data);
       }
       
-      const { token, user } = response.data;
+      // Store mock token and user data
+      localStorage.setItem('auth_token', `mock-token-${mockUser.id}`);
+      localStorage.setItem('user_data', JSON.stringify(mockUser));
+      setUser(mockUser);
       
-      localStorage.setItem('auth_token', token);
-      setUser(user);
+      toast({
+        title: "Account created",
+        description: data.role === 'instructor' 
+          ? "Your instructor application has been submitted!" 
+          : "Your account has been successfully created."
+      });
       
-      return user;
+      return;
     } catch (error: any) {
-      console.error("Signup error details:", error.response || error);
-      const message = error.response?.data?.message || error.message || 'Signup failed';
+      console.error("Signup error details:", error);
+      const message = error.message || 'Signup failed';
       throw new Error(message);
     }
   };
 
   const logout = () => {
     localStorage.removeItem('auth_token');
+    localStorage.removeItem('user_data');
     setUser(null);
     toast({
       title: "Logged out",
