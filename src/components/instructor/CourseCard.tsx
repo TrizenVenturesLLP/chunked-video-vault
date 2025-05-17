@@ -19,20 +19,13 @@ import { Course } from '@/services/courseService';
 
 interface CourseCardProps {
   course: Course;
-  onEdit?: () => void;
-  onDelete?: () => void;
-  isDeleting?: boolean;
 }
 
-const CourseCard = ({ course, onEdit, onDelete, isDeleting }: CourseCardProps) => {
+const CourseCard = ({ course }: CourseCardProps) => {
   const navigate = useNavigate();
 
   const handleEditCourse = () => {
-    if (onEdit) {
-      onEdit();
-    } else {
-      navigate(`/instructor/courses/${course._id}/content`);
-    }
+    navigate(`/instructor/courses/${course._id}/content`);
   };
 
   const handlePreviewCourse = () => {
@@ -64,11 +57,6 @@ const CourseCard = ({ course, onEdit, onDelete, isDeleting }: CourseCardProps) =
                 <Eye className="mr-2 h-4 w-4" />
                 Preview
               </DropdownMenuItem>
-              {onDelete && (
-                <DropdownMenuItem onClick={onDelete} disabled={isDeleting}>
-                  {isDeleting ? "Deleting..." : "Delete Course"}
-                </DropdownMenuItem>
-              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
