@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -28,10 +28,21 @@ type LoginFormValues = z.infer<typeof loginFormSchema>;
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login, user } = useAuth();
+  const { login, user, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Effect to redirect if already logged in
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      if (user.role === 'instructor') {
+        navigate('/instructor/dashboard');
+      } else {
+        navigate('/courses');
+      }
+    }
+  }, [isAuthenticated, user, navigate]);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
@@ -46,18 +57,9 @@ const Login = () => {
     
     try {
       await login(values.email, values.password);
-      toast({
-        title: "Login successful",
-        description: "Welcome back!",
-      });
       
-      // Navigate based on user role
-      if (user?.role === 'instructor') {
-        navigate('/instructor/dashboard');
-      } else {
-        // Default route for students or other roles
-        navigate('/courses');
-      }
+      // Navigation will be handled by the useEffect when user state updates
+      
     } catch (error: any) {
       console.error('Login error:', error);
       const errorMessage = error.message || 'Invalid email or password. Please try again.';

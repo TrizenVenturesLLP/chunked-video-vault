@@ -14,6 +14,9 @@ export interface User {
   instructorProfile?: {
     specialty: string;
     experience: number;
+    rating?: number;
+    totalReviews?: number;
+    courses?: string[];
   };
 }
 
@@ -56,20 +59,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const token = localStorage.getItem('auth_token');
     
     if (token) {
-      // In a real application, we would verify the token with the backend
-      // For now, let's retrieve mock user data from local storage if available
-      const storedUser = localStorage.getItem('user_data');
-      if (storedUser) {
-        try {
-          const parsedUser = JSON.parse(storedUser);
-          setUser(parsedUser);
-        } catch (error) {
-          // If JSON parsing fails, clear the invalid data
+      // Verify the token with the backend
+      axios.get('/api/auth/me')
+        .then(response => {
+          if (response.data && response.data.user) {
+            setUser(response.data.user);
+          } else {
+            // If backend returns invalid response, clear token
+            localStorage.removeItem('auth_token');
+          }
+        })
+        .catch(() => {
+          // If token is invalid, clear it
           localStorage.removeItem('auth_token');
-          localStorage.removeItem('user_data');
-        }
-      }
-      setLoading(false);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
     } else {
       setLoading(false);
     }
@@ -77,100 +83,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = async (email: string, password: string) => {
     try {
-      // For development purposes, let's use mock authentication for any email/password
-      // In production, this would validate against a real backend
+      const response = await axios.post('/api/auth/login', { email, password });
       
-      // Mock login for demonstration purposes - works with any email/password
-      // But using specific test values for consistency
-      if (email && password) {
-        // If it's our test account, use predefined data
-        let mockUser: User;
-        
-        if (email === 'test@example.com' && password === 'password') {
-          mockUser = {
-            id: '12345',
-            name: 'Test User',
-            email: 'test@example.com',
-            role: 'instructor',
-            status: 'active',
-            displayName: 'Test Instructor',
-            instructorProfile: {
-              specialty: 'Web Development',
-              experience: 5
-            }
-          };
-        } else if (email.includes('instructor')) {
-          // For any email with 'instructor', create an instructor account
-          mockUser = {
-            id: `user-${Date.now()}`,
-            name: email.split('@')[0],
-            email: email,
-            role: 'instructor',
-            status: 'active',
-            displayName: email.split('@')[0],
-            instructorProfile: {
-              specialty: 'General',
-              experience: 1
-            }
-          };
-        } else {
-          // Default to student account
-          mockUser = {
-            id: `user-${Date.now()}`,
-            name: email.split('@')[0],
-            email: email,
-            role: 'student',
-            status: 'active',
-            displayName: email.split('@')[0]
-          };
-        }
-        
-        // Store mock token and user data
-        localStorage.setItem('auth_token', `mock-token-${mockUser.id}`);
-        localStorage.setItem('user_data', JSON.stringify(mockUser));
-        setUser(mockUser);
-        
-        toast({
-          title: "Login successful",
-          description: `Welcome back, ${mockUser.name}!`
-        });
-        
-        return;
-      }
+      // Store token and user data
+      localStorage.setItem('auth_token', response.data.token);
+      setUser(response.data.user);
       
-      throw new Error('Email and password are required');
+      toast({
+        title: "Login successful",
+        description: `Welcome back, ${response.data.user.name}!`
+      });
+      
+      return;
     } catch (error: any) {
       console.error("Login error:", error);
-      const message = error.message || 'Login failed';
-      throw new Error(message);
+      // Handle specific error cases
+      const errorMessage = error.response?.data?.message || 'Login failed';
+      throw new Error(errorMessage);
     }
   };
 
   const signup = async (data: SignupData) => {
     try {
-      // Using mock signup functionality for development
-      // In production, this would send data to a real backend
+      // Determine the endpoint based on the role
+      const endpoint = data.role === 'instructor' 
+        ? '/api/auth/instructor-signup' 
+        : '/api/auth/signup';
       
-      const mockUser: User = {
-        id: `user-${Date.now()}`,
-        name: data.name,
-        email: data.email,
-        role: data.role,
-        status: data.role === 'instructor' ? 'pending' : 'active',
-        displayName: data.name
-      };
+      const response = await axios.post(endpoint, data);
       
-      if (data.role === 'instructor') {
-        mockUser.instructorProfile = {
-          specialty: data.specialty || 'General',
-          experience: data.experience || 0
-        };
-      }
-      
-      // Store mock token and user data
-      localStorage.setItem('auth_token', `mock-token-${mockUser.id}`);
-      localStorage.setItem('user_data', JSON.stringify(mockUser));
-      setUser(mockUser);
+      // Store token and user data
+      localStorage.setItem('auth_token', response.data.token);
+      setUser(response.data.user);
       
       toast({
         title: "Account created",
@@ -181,15 +125,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       return;
     } catch (error: any) {
-      console.error("Signup error details:", error);
-      const message = error.message || 'Signup failed';
+      console.error("Signup error:", error);
+      const message = error.response?.data?.message || 'Signup failed';
       throw new Error(message);
     }
   };
 
   const logout = () => {
     localStorage.removeItem('auth_token');
-    localStorage.removeItem('user_data');
     setUser(null);
     toast({
       title: "Logged out",
