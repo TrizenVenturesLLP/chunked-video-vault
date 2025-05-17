@@ -72,8 +72,10 @@ const storage = multer.diskStorage({
   filename: (req, file, cb) => {
     try {
       const baseFileName = file.originalname.replace(/\s+/g, '');
+      // Use the actual chunk number from the request body
       const chunkNumber = req.body.chunk || '0';
       const fileName = `${baseFileName}.part_${chunkNumber}`;
+      console.log(`Creating filename for chunk: ${fileName}`);
       cb(null, fileName);
     } catch (error) {
       console.error('Error in filename generation:', error);
@@ -107,11 +109,33 @@ router.post('/upload', upload.single('video'), async (req, res) => {
     const totalChunks = parseInt(req.body.totalChunks || '1', 10);
     const fileName = req.body.originalname.replace(/\s+/g, '');
 
-    // Log upload progress
+    // Log upload progress with more details
     console.log(`Processing chunk ${chunkNumber + 1}/${totalChunks} of ${fileName}`);
+    console.log(`Saved chunk file: ${req.file.path}`);
+    
+    // Check file size and disk space
+    try {
+      const stats = await fs.stat(req.file.path);
+      console.log(`Chunk size: ${stats.size} bytes`);
+    } catch (statErr) {
+      console.error(`Error checking chunk file stats: ${statErr.message}`);
+    }
 
+    // For the last chunk, attempt to merge all chunks
     if (chunkNumber === totalChunks - 1) {
       try {
+        // Verify all chunks exist before merging
+        const missingChunks = await checkAllChunksExist(fileName, totalChunks);
+        
+        if (missingChunks.length > 0) {
+          console.error(`Missing chunks detected: ${missingChunks.join(', ')}`);
+          return res.status(500).json({ 
+            error: 'Some chunks are missing. Upload may need to be restarted.',
+            details: `Missing chunks: ${missingChunks.join(', ')}`
+          });
+        }
+        
+        console.log('All chunks verified. Beginning merge process...');
         await mergeChunks(fileName, totalChunks);
         console.log(`All chunks merged for ${fileName}`);
         
@@ -257,6 +281,22 @@ router.post('/upload', upload.single('video'), async (req, res) => {
 // Serve uploaded files
 router.use('/uploads', express.static(uploadPath));
 
+// New function to check if all chunks exist before merging
+async function checkAllChunksExist(fileName, totalChunks) {
+  console.log(`Verifying all ${totalChunks} chunks exist for ${fileName}`);
+  const missingChunks = [];
+  
+  for (let i = 0; i < totalChunks; i++) {
+    const chunkPath = path.join(uploadPathChunks, `${fileName}.part_${i}`);
+    if (!await fs.pathExists(chunkPath)) {
+      console.error(`Missing chunk at index ${i}: ${chunkPath}`);
+      missingChunks.push(i);
+    }
+  }
+  
+  return missingChunks;
+}
+
 // Merge chunks helper function with improved error handling
 const MAX_RETRIES = 5;
 const RETRY_DELAY = 1000; // 1 second
@@ -274,8 +314,8 @@ async function mergeChunks(fileName, totalChunks) {
 
       console.log(`Processing chunk ${i + 1}/${totalChunks} from ${chunkPath}`);
       
-      // Check if chunk exists before attempting to read
-      if (!fs.existsSync(chunkPath)) {
+      // Double-check if chunk exists before attempting to read
+      if (!await fs.pathExists(chunkPath)) {
         console.error(`Chunk file not found: ${chunkPath}`);
         throw new Error(`Chunk file ${i} not found`);
       }
@@ -283,6 +323,8 @@ async function mergeChunks(fileName, totalChunks) {
       while (retries < MAX_RETRIES) {
         try {
           const chunkData = await fs.readFile(chunkPath);
+          console.log(`Successfully read chunk ${i}, size: ${chunkData.length} bytes`);
+          
           await new Promise((resolve, reject) => {
             writeStream.write(chunkData, (err) => {
               if (err) reject(err);

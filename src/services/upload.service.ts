@@ -21,22 +21,26 @@ export const uploadVideo = async (
   onComplete: UploadCompleteCallback,
   onError: UploadErrorCallback
 ) => {
-  // Use even smaller chunks to prevent buffer overflows
-  const chunkSize = 1 * 1024 * 1024; // 1MB chunks for more reliable uploads
+  // Use even smaller chunks to prevent buffer overflows and track upload state
+  const chunkSize = 512 * 1024; // 512KB chunks for more reliable uploads
   const chunks = Math.ceil(file.size / chunkSize);
+  const uploadedChunks = new Set<number>();
   
   try {
+    console.log(`Starting upload of ${file.name} in ${chunks} chunks`);
+    
     for (let start = 0; start < file.size; start += chunkSize) {
       const chunk = file.slice(start, start + chunkSize);
+      const chunkNumber = Math.floor(start / chunkSize);
       const formData = new FormData();
       
       formData.append("video", chunk, file.name);
-      formData.append("chunk", Math.floor(start / chunkSize).toString());
+      formData.append("chunk", chunkNumber.toString());
       formData.append("totalChunks", chunks.toString());
       formData.append("originalname", file.name);
 
       try {
-        console.log(`Uploading chunk ${Math.floor(start / chunkSize) + 1}/${chunks}`);
+        console.log(`Uploading chunk ${chunkNumber + 1}/${chunks}`);
         
         // Add timeout and retry logic
         let attempts = 0;
@@ -62,14 +66,29 @@ export const uploadVideo = async (
               throw new Error(errorData.error || `Chunk upload failed with status: ${response.status}`);
             }
             
+            // Mark this chunk as successfully uploaded
+            uploadedChunks.add(chunkNumber);
             success = true;
             
             // Calculate accurate progress
-            const currentProgress = ((start + chunk.size) / file.size) * 100;
+            const currentProgress = (uploadedChunks.size / chunks) * 100;
             onProgress(Math.min(currentProgress, 99)); // Cap at 99% until fully complete
             
             // If this is the final chunk, get the complete file info
-            if (Math.floor(start / chunkSize) === chunks - 1) {
+            if (chunkNumber === chunks - 1) {
+              // Verify all chunks were uploaded
+              let allChunksUploaded = true;
+              for (let i = 0; i < chunks; i++) {
+                if (!uploadedChunks.has(i)) {
+                  allChunksUploaded = false;
+                  console.error(`Missing chunk ${i} in upload completion`);
+                }
+              }
+              
+              if (!allChunksUploaded) {
+                throw new Error("Not all chunks were successfully uploaded");
+              }
+              
               const responseData = await response.json();
               console.log("Final chunk response:", responseData);
               
