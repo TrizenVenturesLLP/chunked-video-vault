@@ -1,57 +1,57 @@
 
 # Backend Server Configuration
 
-This frontend application expects a Node.js backend server configured with Express, Multer for file uploads, and MinIO S3 for storage. Below is a summary of the required backend setup:
+This frontend application connects to a Node.js backend server that handles chunked video uploads and stores them in MinIO S3. Follow these steps to set up the backend:
 
-## Server Requirements
+## Backend Setup Instructions
 
-1. Express server that handles chunked file uploads
-2. MinIO S3 bucket configuration for video storage
-3. File reassembly logic as shown in the user-provided code
+1. Navigate to the backend directory: `cd backend`
 
-## Example Server Code
-
-The code provided in the request already contains most of the necessary server implementation:
-
-- Express server setup with proper CORS configuration
-- Multer configuration for handling file uploads
-- Chunk reassembly logic with retry mechanism
-- Error handling for upload failures
-
-## MinIO S3 Integration (to be added)
-
-To fully implement the MinIO S3 storage, you would need to:
-
-1. Install the MinIO JavaScript client:
+2. Install dependencies:
    ```
-   npm install minio
+   npm install
    ```
 
-2. Configure the MinIO client:
-   ```javascript
-   import { Client } from 'minio';
+3. Set up your MinIO server (if not already running):
+   - Download and install MinIO from https://min.io/download
+   - Start the MinIO server locally or use a cloud-hosted instance
 
-   const minioClient = new Client({
-     endPoint: 'your-minio-server',
-     port: 9000,
-     useSSL: true,
-     accessKey: 'your-access-key',
-     secretKey: 'your-secret-key'
-   });
+4. Configure environment variables in `backend/.env`:
+   ```
+   MINIO_ENDPOINT=your-minio-server
+   MINIO_PORT=9000
+   MINIO_USE_SSL=false
+   MINIO_ACCESS_KEY=your-access-key
+   MINIO_SECRET_KEY=your-secret-key
+   MINIO_BUCKET=video-bucket
+   PORT=3000
    ```
 
-3. Modify the file upload handler to store files in MinIO after reassembly:
-   ```javascript
-   // After mergeChunks successfully completes
-   const fileBuffer = await fs.promises.readFile(path.join(uploadPath, fileName));
-   await minioClient.putObject('video-bucket', fileName, fileBuffer);
-   
-   // Update the videoUrl to point to the MinIO object
-   const videoUrl = await minioClient.presignedGetObject('video-bucket', fileName, 24*60*60); // 24 hour expiry
+5. Start the backend server:
+   ```
+   npm start
    ```
 
-4. Configure proper bucket policies and lifecycle rules in MinIO for your video storage needs
+## Features Implemented
 
-## Running the Backend
+The backend server provides:
+- Express server handling chunked file uploads
+- Multer configuration for processing file chunks
+- File reassembly logic with retry mechanism
+- MinIO S3 integration for video storage
+- Presigned URLs for secure video access
 
-Make sure your backend server is running on the expected URL (`http://localhost:3000` by default) before using this frontend application.
+## Folder Structure
+
+```
+backend/
+  ├── server.js         # Main server entry point
+  ├── routes/           # Express routes
+  │   └── video.js      # Video upload route handlers
+  ├── .env              # Environment configuration
+  ├── uploads/          # Temporary storage for merged files
+  ├── chunks/           # Temporary storage for file chunks
+  └── package.json      # Backend dependencies
+```
+
+Make sure the backend server is running on http://localhost:3000 before attempting to upload videos from the frontend.
