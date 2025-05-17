@@ -6,6 +6,7 @@ import multer from 'multer';
 import dotenv from 'dotenv';
 import videoRouter from './routes/video.js';
 import authRouter from './routes/auth.js';
+import courseRouter from './routes/course.js';
 import path from 'path';
 import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
@@ -66,6 +67,7 @@ app.get('/', (req, res) => {
 // API routes
 app.use('/api/auth', authRouter);
 app.use('/api', videoRouter);
+app.use('/api', courseRouter);
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
