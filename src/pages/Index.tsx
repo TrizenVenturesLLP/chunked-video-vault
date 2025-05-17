@@ -4,9 +4,11 @@ import VideoUploader from "@/components/VideoUploader";
 import { VideoFile } from "@/types/video.types";
 import { Separator } from "@/components/ui/separator";
 import { ArrowDown, FileVideo } from "lucide-react";
+import VideoPlayer from "@/components/VideoPlayer";
 
 const Index = () => {
   const [uploadedVideos, setUploadedVideos] = useState<VideoFile[]>([]);
+  const [selectedVideo, setSelectedVideo] = useState<VideoFile | null>(null);
 
   const handleUploadComplete = (fileInfo: any) => {
     const newVideo: VideoFile = {
@@ -19,6 +21,7 @@ const Index = () => {
     };
     
     setUploadedVideos([newVideo, ...uploadedVideos]);
+    setSelectedVideo(newVideo);
   };
 
   return (
@@ -36,6 +39,18 @@ const Index = () => {
         <div className="max-w-3xl mx-auto">
           <VideoUploader onUploadComplete={handleUploadComplete} />
           
+          {selectedVideo && (
+            <div className="mt-8">
+              <div className="flex items-center mb-4">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  Current Video
+                </h2>
+                <Separator className="flex-grow ml-4" />
+              </div>
+              <VideoPlayer videoUrl={selectedVideo.videoUrl} title={selectedVideo.originalName} />
+            </div>
+          )}
+          
           {uploadedVideos.length > 0 && (
             <div className="mt-12">
               <div className="flex items-center mb-6">
@@ -49,7 +64,8 @@ const Index = () => {
                 {uploadedVideos.map((video, index) => (
                   <div 
                     key={index} 
-                    className="flex items-center p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm"
+                    className="flex items-center p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
+                    onClick={() => setSelectedVideo(video)}
                   >
                     <div className="h-12 w-12 rounded-md bg-gray-100 dark:bg-gray-700 flex items-center justify-center mr-4">
                       <FileVideo className="h-6 w-6 text-gray-500 dark:text-gray-400" />
@@ -73,14 +89,15 @@ const Index = () => {
                       </div>
                     </div>
                     
-                    <a
-                      href={video.videoUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="ml-4 px-3 py-1 text-xs font-medium text-primary bg-primary/10 rounded-full hover:bg-primary/20 transition-colors"
+                    <button
+                      className={`ml-4 px-3 py-1 text-xs font-medium rounded-full transition-colors ${
+                        selectedVideo && selectedVideo.videoUrl === video.videoUrl 
+                          ? "bg-primary text-primary-foreground" 
+                          : "text-primary bg-primary/10 hover:bg-primary/20"
+                      }`}
                     >
-                      View
-                    </a>
+                      {selectedVideo && selectedVideo.videoUrl === video.videoUrl ? "Playing" : "Play"}
+                    </button>
                   </div>
                 ))}
               </div>
@@ -155,3 +172,4 @@ function formatFileSize(bytes: number): string {
 }
 
 export default Index;
+
