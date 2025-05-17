@@ -19,6 +19,7 @@ import Settings from "./pages/instructor/Settings";
 import Students from "./pages/instructor/Students";
 import TeachingResources from "./pages/instructor/TeachingResources";
 import Support from "./pages/instructor/Support";
+import Courses from "./pages/instructor/Courses";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +36,7 @@ const App = () => (
           <Route path="/instructor" element={<InstructorLayout />}>
             <Route path="dashboard" element={<InstructorDashboard />} />
             <Route path="profile" element={<InstructorProfile />} />
+            <Route path="courses" element={<Courses />} />
             <Route path="courses/:courseId/content" element={<CourseContent />} />
             <Route path="courses/:courseId/students" element={<Students />} />
             <Route path="students" element={<Students />} />
