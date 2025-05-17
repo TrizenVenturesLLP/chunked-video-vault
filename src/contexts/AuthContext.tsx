@@ -77,7 +77,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       // Adding mock static data for development purposes
       if (email === 'test@example.com' && password === 'password') {
-        const mockUser = {
+        const mockUser: User = {
           id: '12345',
           name: 'Test User',
           email: 'test@example.com',
@@ -121,7 +121,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       // Adding mock signup functionality for development
       if (data.email.includes('@example.com')) {
-        const mockUser = {
+        const mockUser: User = {
           id: '12345',
           name: data.name,
           email: data.email,
