@@ -1,4 +1,3 @@
-
 import { useState, useRef, ChangeEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,9 +17,10 @@ export interface UploadedFile {
 
 interface VideoUploaderProps {
   onUploadComplete?: (fileInfo: UploadedFile) => void;
+  onUploadError?: (error: Error) => void;
 }
 
-const VideoUploader = ({ onUploadComplete }: VideoUploaderProps) => {
+const VideoUploader = ({ onUploadComplete, onUploadError }: VideoUploaderProps) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -69,7 +69,11 @@ const VideoUploader = ({ onUploadComplete }: VideoUploaderProps) => {
       },
       (error) => {
         setIsUploading(false);
-        toast.error(`Upload failed: ${error.message}`);
+        toast.error(`Upload encountered an issue: ${error.message}`);
+        // If we have an error handler prop, call it
+        if (onUploadError) {
+          onUploadError(error);
+        }
       }
     );
   };

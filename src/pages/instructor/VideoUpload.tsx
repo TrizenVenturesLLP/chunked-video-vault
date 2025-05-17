@@ -3,18 +3,28 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, AlertTriangle } from 'lucide-react';
 import VideoUploader from '@/components/VideoUploader';
 import { UploadedFile } from '@/components/VideoUploader';
 import { toast } from 'sonner';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const VideoUpload = () => {
   const navigate = useNavigate();
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const handleUploadComplete = (fileInfo: UploadedFile) => {
     setUploadedFiles(prev => [...prev, fileInfo]);
     toast.success("Video uploaded successfully");
+    // Clear any previous errors when a successful upload happens
+    setUploadError(null);
+  };
+
+  const handleUploadError = (error: Error) => {
+    console.error('Upload error:', error);
+    setUploadError("There was a problem with the video storage service. Your video was processed but may be using a fallback URL.");
+    toast.error("Upload encountered an issue");
   };
 
   return (
@@ -30,9 +40,22 @@ const VideoUpload = () => {
         <h1 className="text-3xl font-bold">Video Upload</h1>
       </div>
 
+      {uploadError && (
+        <Alert variant="warning" className="bg-amber-50 border-amber-200">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Storage Service Warning</AlertTitle>
+          <AlertDescription>
+            {uploadError}
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div>
-          <VideoUploader onUploadComplete={handleUploadComplete} />
+          <VideoUploader 
+            onUploadComplete={handleUploadComplete}
+            onUploadError={handleUploadError}
+          />
         </div>
         
         <div>
