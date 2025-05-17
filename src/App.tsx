@@ -9,6 +9,8 @@ import InstructorDashboard from "./pages/InstructorDashboard";
 import NotFound from "./pages/NotFound";
 import InstructorLayout from "./pages/instructor/InstructorLayout";
 import InstructorProfile from "./pages/instructor/InstructorProfile";
+import CourseContent from "./pages/instructor/CourseContent";
+import FAQ from "./pages/instructor/FAQ";
 
 const queryClient = new QueryClient();
 
@@ -25,6 +27,8 @@ const App = () => (
           <Route path="/instructor" element={<InstructorLayout />}>
             <Route path="dashboard" element={<InstructorDashboard />} />
             <Route path="profile" element={<InstructorProfile />} />
+            <Route path="courses/:courseId/content" element={<CourseContent />} />
+            <Route path="faq" element={<FAQ />} />
             {/* Add other instructor routes here */}
           </Route>
           
