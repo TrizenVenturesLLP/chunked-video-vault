@@ -8,7 +8,7 @@ export interface UploadProgressCallback {
 }
 
 export interface UploadCompleteCallback {
-  (fileInfo: any): void;
+  (fileInfo: any, usingFallback?: boolean): void;
 }
 
 export interface UploadErrorCallback {
@@ -55,9 +55,15 @@ export const uploadVideo = async (
           const responseData = await response.json();
           console.log("Final chunk response:", responseData);
           
-          if (responseData.message && responseData.message.includes("local storage")) {
-            console.log("Using fallback storage mechanism");
-          }
+          // Determine if we're using the fallback storage
+          const usingFallback = responseData.message && (
+            responseData.message.includes("local storage") || 
+            responseData.message.includes("fallback") ||
+            (responseData.file && responseData.file.videoUrl && (
+              responseData.file.videoUrl.includes('localhost') || 
+              responseData.file.videoUrl.includes('127.0.0.1')
+            ))
+          );
           
           if (responseData.file && responseData.file.videoUrl) {
             // Pass along the entire response data so we can detect if this was a fallback
@@ -65,7 +71,7 @@ export const uploadVideo = async (
               ...responseData.file,
               message: responseData.message
             };
-            onComplete(fileInfo);
+            onComplete(fileInfo, usingFallback);
             onProgress(100); // Ensure we show 100% when complete
           } else {
             throw new Error("Invalid response from server for the final chunk");
