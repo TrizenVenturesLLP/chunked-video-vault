@@ -41,7 +41,7 @@ const VideoUpload = () => {
       </div>
 
       {uploadError && (
-        <Alert variant="warning" className="bg-amber-50 border-amber-200">
+        <Alert variant="destructive" className="bg-amber-50 border-amber-200">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Storage Service Warning</AlertTitle>
           <AlertDescription>
