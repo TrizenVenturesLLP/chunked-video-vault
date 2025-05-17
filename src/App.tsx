@@ -21,6 +21,7 @@ import TeachingResources from "./pages/instructor/TeachingResources";
 import Support from "./pages/instructor/Support";
 import Courses from "./pages/instructor/Courses";
 import CreateCourse from "./pages/instructor/CreateCourse";
+import Assessments from "./pages/instructor/Assessments";
 
 const queryClient = new QueryClient();
 
@@ -42,6 +43,7 @@ const App = () => (
             <Route path="courses/:courseId/content" element={<CourseContent />} />
             <Route path="courses/:courseId/students" element={<Students />} />
             <Route path="students" element={<Students />} />
+            <Route path="assessments" element={<Assessments />} />
             <Route path="faq" element={<FAQ />} />
             <Route path="videos" element={<VideoUpload />} />
             <Route path="guidelines" element={<InstructorGuidelines />} />
