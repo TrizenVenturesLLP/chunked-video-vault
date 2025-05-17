@@ -12,6 +12,8 @@ import InstructorProfile from "./pages/instructor/InstructorProfile";
 import CourseContent from "./pages/instructor/CourseContent";
 import FAQ from "./pages/instructor/FAQ";
 import VideoUpload from "./pages/instructor/VideoUpload";
+import InstructorGuidelines from "./pages/instructor/InstructorGuidelines";
+import LiveSessions from "./pages/instructor/LiveSessions";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +33,8 @@ const App = () => (
             <Route path="courses/:courseId/content" element={<CourseContent />} />
             <Route path="faq" element={<FAQ />} />
             <Route path="videos" element={<VideoUpload />} />
+            <Route path="guidelines" element={<InstructorGuidelines />} />
+            <Route path="sessions" element={<LiveSessions />} />
             {/* Add other instructor routes here */}
           </Route>
           
