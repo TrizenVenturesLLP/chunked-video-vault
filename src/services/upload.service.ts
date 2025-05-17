@@ -21,8 +21,8 @@ export const uploadVideo = async (
   onComplete: UploadCompleteCallback,
   onError: UploadErrorCallback
 ) => {
-  // Use smaller chunks to prevent buffer overflows
-  const chunkSize = 2 * 1024 * 1024; // Reduced to 2MB chunks for more reliable uploads
+  // Use even smaller chunks to prevent buffer overflows
+  const chunkSize = 1 * 1024 * 1024; // 1MB chunks for more reliable uploads
   const chunks = Math.ceil(file.size / chunkSize);
   
   try {
@@ -47,7 +47,7 @@ export const uploadVideo = async (
           try {
             attempts++;
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout
+            const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
             
             const response = await fetch(`${API_URL}/upload`, {
               method: "POST",
@@ -58,7 +58,7 @@ export const uploadVideo = async (
             clearTimeout(timeoutId);
             
             if (!response.ok) {
-              const errorData = await response.json().catch(() => ({}));
+              const errorData = await response.json().catch(() => ({ error: `HTTP error ${response.status}` }));
               throw new Error(errorData.error || `Chunk upload failed with status: ${response.status}`);
             }
             
@@ -66,7 +66,7 @@ export const uploadVideo = async (
             
             // Calculate accurate progress
             const currentProgress = ((start + chunk.size) / file.size) * 100;
-            onProgress(Math.min(currentProgress, 100));
+            onProgress(Math.min(currentProgress, 99)); // Cap at 99% until fully complete
             
             // If this is the final chunk, get the complete file info
             if (Math.floor(start / chunkSize) === chunks - 1) {
@@ -107,7 +107,7 @@ export const uploadVideo = async (
               throw retryError;
             }
             console.log(`Chunk upload attempt ${attempts} failed, retrying...`);
-            await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retry
+            await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds before retry
           }
         }
       } catch (error) {

@@ -1,4 +1,3 @@
-
 import { useState, useRef, ChangeEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,6 +27,7 @@ const VideoUploader = ({ onUploadComplete }: VideoUploaderProps) => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [dragActive, setDragActive] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<UploadedFile | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -43,6 +43,7 @@ const VideoUploader = ({ onUploadComplete }: VideoUploaderProps) => {
       
       setSelectedFile(file);
       setUploadedFile(null);
+      setUploadError(null);
     }
   };
   
@@ -54,25 +55,37 @@ const VideoUploader = ({ onUploadComplete }: VideoUploaderProps) => {
     
     setIsUploading(true);
     setUploadProgress(0);
+    setUploadError(null);
     
-    await uploadVideo(
-      selectedFile,
-      (progress) => {
-        setUploadProgress(progress);
-      },
-      (fileInfo) => {
-        setIsUploading(false);
-        setUploadProgress(100);
-        setUploadedFile(fileInfo);
-        if (onUploadComplete) {
-          onUploadComplete(fileInfo);
+    try {
+      await uploadVideo(
+        selectedFile,
+        (progress) => {
+          setUploadProgress(progress);
+        },
+        (fileInfo) => {
+          setIsUploading(false);
+          setUploadProgress(100);
+          setUploadedFile(fileInfo);
+          setUploadError(null);
+          
+          if (onUploadComplete) {
+            onUploadComplete(fileInfo);
+          }
+        },
+        (error) => {
+          setIsUploading(false);
+          setUploadError(error.message);
+          toast.error(`Upload failed: ${error.message}`);
         }
-      },
-      (error) => {
-        setIsUploading(false);
-        toast.error(`Upload failed: ${error.message}`);
-      }
-    );
+      );
+    } catch (error) {
+      console.error("Upload error:", error);
+      setIsUploading(false);
+      const errorMessage = error instanceof Error ? error.message : "Unknown upload error";
+      setUploadError(errorMessage);
+      toast.error(`Upload error: ${errorMessage}`);
+    }
   };
   
   const handleDrag = (e: React.DragEvent<HTMLDivElement>) => {
@@ -182,6 +195,30 @@ const VideoUploader = ({ onUploadComplete }: VideoUploaderProps) => {
                     className="h-full bg-primary transition-all duration-300"
                     style={{ width: `${uploadProgress}%` }}
                   ></div>
+                </div>
+              </div>
+            )}
+            
+            {uploadError && !isUploading && (
+              <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-md border border-red-200 dark:border-red-800">
+                <div className="flex items-start">
+                  <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 mr-2 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-red-800 dark:text-red-300">
+                      Upload Error
+                    </p>
+                    <p className="text-xs text-red-700 dark:text-red-400 mt-1">
+                      {uploadError}
+                    </p>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="mt-2 text-xs border-red-300 text-red-700 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/30"
+                      onClick={() => setUploadError(null)}
+                    >
+                      Dismiss
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}
