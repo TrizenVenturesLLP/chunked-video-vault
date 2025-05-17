@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import InstructorDashboard from "./pages/InstructorDashboard";
 import NotFound from "./pages/NotFound";
@@ -22,47 +23,57 @@ import Support from "./pages/instructor/Support";
 import Courses from "./pages/instructor/Courses";
 import CreateCourse from "./pages/instructor/CreateCourse";
 import Assessments from "./pages/instructor/Assessments";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
+import InstructorSignup from "./pages/InstructorSignup";
+import PendingApproval from "./pages/PendingApproval";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          
-          {/* Instructor Routes */}
-          <Route path="/instructor" element={<InstructorLayout />}>
-            <Route path="dashboard" element={<InstructorDashboard />} />
-            <Route path="profile" element={<InstructorProfile />} />
-            <Route path="courses" element={<Courses />} />
-            <Route path="courses/create" element={<CreateCourse />} />
-            <Route path="courses/:courseId/content" element={<CourseContent />} />
-            <Route path="courses/:courseId/students" element={<Students />} />
-            <Route path="students" element={<Students />} />
-            <Route path="assessments" element={<Assessments />} />
-            <Route path="faq" element={<FAQ />} />
-            <Route path="videos" element={<VideoUpload />} />
-            <Route path="guidelines" element={<InstructorGuidelines />} />
-            <Route path="teaching-resources" element={<TeachingResources />} />
-            <Route path="support" element={<Support />} />
-            <Route path="sessions" element={<LiveSessions />} />
-            <Route path="messages" element={<Messages />} />
-            <Route path="settings" element={<Settings />} />
-            {/* Add other instructor routes here */}
-          </Route>
-          
-          {/* Legacy route - can be removed once all links are updated */}
-          <Route path="/instructor/dashboard" element={<InstructorDashboard />} />
-          
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/instructor-signup" element={<InstructorSignup />} />
+            <Route path="/pending-approval" element={<PendingApproval />} />
+            
+            {/* Instructor Routes */}
+            <Route path="/instructor" element={<InstructorLayout />}>
+              <Route path="dashboard" element={<InstructorDashboard />} />
+              <Route path="profile" element={<InstructorProfile />} />
+              <Route path="courses" element={<Courses />} />
+              <Route path="courses/create" element={<CreateCourse />} />
+              <Route path="courses/:courseId/content" element={<CourseContent />} />
+              <Route path="courses/:courseId/students" element={<Students />} />
+              <Route path="students" element={<Students />} />
+              <Route path="assessments" element={<Assessments />} />
+              <Route path="faq" element={<FAQ />} />
+              <Route path="videos" element={<VideoUpload />} />
+              <Route path="guidelines" element={<InstructorGuidelines />} />
+              <Route path="teaching-resources" element={<TeachingResources />} />
+              <Route path="support" element={<Support />} />
+              <Route path="sessions" element={<LiveSessions />} />
+              <Route path="messages" element={<Messages />} />
+              <Route path="settings" element={<Settings />} />
+              {/* Add other instructor routes here */}
+            </Route>
+            
+            {/* Legacy route - can be removed once all links are updated */}
+            <Route path="/instructor/dashboard" element={<InstructorDashboard />} />
+            
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 
