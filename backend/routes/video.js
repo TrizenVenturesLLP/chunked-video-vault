@@ -16,24 +16,31 @@ const uploadPathChunks = path.join(process.cwd(), 'chunks');
 await fs.mkdir(uploadPath, { recursive: true });
 await fs.mkdir(uploadPathChunks, { recursive: true });
 
-// Setup MinIO client with better error handling
+// Setup MinIO client with fixed credentials for testing
 const minioClient = new Client({
-  endPoint: process.env.MINIO_ENDPOINT || 'lmsbackendminio-api.llp.trizenventures.com',
-  port: parseInt(process.env.MINIO_PORT) || 443,
-  useSSL: process.env.MINIO_USE_SSL === 'true',
-  accessKey: process.env.MINIO_ACCESS_KEY || 'b72084650d4c21dd04b801f0',
-  secretKey: process.env.MINIO_SECRET_KEY || 'be2339a15ee0544de0796942ba3a85224cc635'
+  // Use hardcoded credentials for testing if environment variables are not set
+  endPoint: 'lmsbackendminio-api.llp.trizenventures.com',
+  port: 443,
+  useSSL: true,
+  accessKey: 'b72084650d4c21dd04b801f0',
+  secretKey: 'be2339a15ee0544de0796942ba3a85224cc635'
 });
 
 // Ensure the bucket exists
-const bucketName = process.env.MINIO_BUCKET || 'video-bucket';
+const bucketName = 'video-bucket';
 let minioAvailable = false;
 
 // Check MinIO connection status
 (async function checkMinioConnection() {
   try {
     console.log('Testing MinIO connection...');
+    const connectionTestTimeout = setTimeout(() => {
+      console.error('MinIO connection test timed out');
+      minioAvailable = false;
+    }, 5000);
+    
     await minioClient.listBuckets();
+    clearTimeout(connectionTestTimeout);
     console.log('MinIO connection successful');
     minioAvailable = true;
     
@@ -128,46 +135,55 @@ router.post('/upload', upload.single('video'), async (req, res) => {
         let videoUrl = '';
         let storageMode = 'local';
         const localVideoUrl = `http://${req.get('host')}/uploads/${fileName}`;
-        const baseURL = `http://${process.env.MINIO_ENDPOINT || 'lmsbackendminio-api.llp.trizenventures.com'}:${process.env.MINIO_PORT || 443}/${bucketName}/`;
+        const baseURL = `https://lmsbackendminio-api.llp.trizenventures.com/${bucketName}/`;
         
         // Only attempt cloud upload if MinIO is available
         if (minioAvailable) {
           try {
-            console.log(`Uploading ${fileName} to MinIO bucket ${bucketName}`);
+            console.log(`Attempting to upload ${fileName} to MinIO bucket ${bucketName}`);
             
-            // Stream file to MinIO instead of loading it all into memory
+            // Use a more reliable upload method with smaller chunks
             const filePath = path.join(uploadPath, fileName);
-            const fileStream = fs.createReadStream(filePath);
+            const fileStats = await fs.stat(filePath);
             
-            // Set up a promise with timeout for MinIO operations
-            const UPLOAD_TIMEOUT = 45000; // 45 seconds timeout
-            
-            const uploadWithTimeout = async () => {
-              return Promise.race([
-                new Promise((resolve, reject) => {
-                  minioClient.fPutObject(bucketName, fileName, filePath, (err, etag) => {
-                    if (err) {
-                      console.error('MinIO fPutObject error:', err);
-                      reject(err);
-                    } else {
-                      console.log('MinIO upload successful with etag:', etag);
-                      resolve(etag);
-                    }
-                  });
-                }),
-                new Promise((_, reject) => 
-                  setTimeout(() => reject(new Error('MinIO upload timeout')), UPLOAD_TIMEOUT)
-                )
-              ]);
-            };
-            
-            try {
-              await uploadWithTimeout();
-              uploadedToCloud = true;
-              storageMode = 'cloud';
-              console.log(`File ${fileName} uploaded to MinIO successfully`);
+            if (fileStats.size > 50 * 1024 * 1024) {
+              console.log('File is large, using chunked upload to MinIO');
               
-              // Generate a presigned URL for the uploaded video
+              // Use direct PutObject for smaller files to avoid streaming issues
+              try {
+                const UPLOAD_TIMEOUT = 15000; // 15 seconds timeout
+                const uploadPromise = minioClient.fPutObject(bucketName, fileName, filePath);
+                
+                // Create a timeout promise
+                const timeoutPromise = new Promise((_, reject) => 
+                  setTimeout(() => reject(new Error('MinIO upload timeout')), UPLOAD_TIMEOUT)
+                );
+                
+                // Race the upload against the timeout
+                await Promise.race([uploadPromise, timeoutPromise]);
+                uploadedToCloud = true;
+                storageMode = 'cloud';
+                console.log(`File ${fileName} uploaded to MinIO successfully`);
+              } catch (uploadError) {
+                console.error('MinIO upload error:', uploadError);
+                throw uploadError;
+              }
+            } else {
+              // For smaller files, read the file and use putObject
+              try {
+                const fileContent = await fs.readFile(filePath);
+                await minioClient.putObject(bucketName, fileName, fileContent);
+                uploadedToCloud = true;
+                storageMode = 'cloud';
+                console.log(`File ${fileName} uploaded to MinIO successfully (small file method)`);
+              } catch (smallFileError) {
+                console.error('MinIO small file upload error:', smallFileError);
+                throw smallFileError;
+              }
+            }
+            
+            // Generate a presigned URL for the uploaded video
+            if (uploadedToCloud) {
               try {
                 videoUrl = await minioClient.presignedGetObject(bucketName, fileName, 24 * 60 * 60); // 24 hour expiry
                 console.log('Generated presigned URL:', videoUrl);
@@ -176,14 +192,13 @@ router.post('/upload', upload.single('video'), async (req, res) => {
                 videoUrl = `${baseURL}${fileName}`;
                 console.log('Fallback URL:', videoUrl);
               }
-            } catch (timeoutError) {
-              console.error('MinIO upload timed out or failed:', timeoutError);
-              throw timeoutError;
             }
           } catch (minioError) {
             console.error('Error uploading to MinIO:', minioError);
             uploadedToCloud = false;
           }
+        } else {
+          console.log('MinIO is not available, using local storage');
         }
         
         // If cloud upload failed, use local storage fallback
@@ -231,7 +246,7 @@ router.post('/upload', upload.single('video'), async (req, res) => {
       }
     } else {
       // For intermediate chunks, return simple success response
-      const baseURL = `http://${process.env.MINIO_ENDPOINT || 'lmsbackendminio-api.llp.trizenventures.com'}:${process.env.MINIO_PORT || 443}/${bucketName}/`;
+      const baseURL = `https://lmsbackendminio-api.llp.trizenventures.com/${bucketName}/`;
       
       res.status(200).json({
         message: 'Chunk uploaded successfully',

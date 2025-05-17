@@ -22,7 +22,7 @@ export const uploadVideo = async (
   onError: UploadErrorCallback
 ) => {
   // Use smaller chunks to prevent buffer overflows
-  const chunkSize = 5 * 1024 * 1024; // Reduced to 5MB chunks
+  const chunkSize = 2 * 1024 * 1024; // Reduced to 2MB chunks for more reliable uploads
   const chunks = Math.ceil(file.size / chunkSize);
   
   try {
@@ -47,7 +47,7 @@ export const uploadVideo = async (
           try {
             attempts++;
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+            const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout
             
             const response = await fetch(`${API_URL}/upload`, {
               method: "POST",
