@@ -4,7 +4,6 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff } from 'lucide-react';
@@ -29,7 +28,7 @@ type LoginFormValues = z.infer<typeof loginFormSchema>;
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -52,8 +51,13 @@ const Login = () => {
         description: "Welcome back!",
       });
       
-      // Navigate to instructor dashboard
-      navigate('/instructor/dashboard');
+      // Navigate based on user role
+      if (user?.role === 'instructor') {
+        navigate('/instructor/dashboard');
+      } else {
+        // Default route for students or other roles
+        navigate('/courses');
+      }
     } catch (error: any) {
       console.error('Login error:', error);
       const errorMessage = error.message || 'Invalid email or password. Please try again.';
