@@ -57,7 +57,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     
     if (token) {
       // Verify token and get user data
-      axios.get('/api/auth/me')
+      axios.get('/auth/me')
         .then(response => {
           setUser(response.data.user);
         })
@@ -75,7 +75,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = async (email: string, password: string) => {
     try {
-      const response = await axios.post('/api/auth/login', { email, password });
+      // Adding mock static data for development purposes
+      if (email === 'test@example.com' && password === 'password') {
+        const mockUser = {
+          id: '12345',
+          name: 'Test User',
+          email: 'test@example.com',
+          role: 'instructor',
+          status: 'active',
+          displayName: 'Test Instructor',
+          instructorProfile: {
+            specialty: 'Web Development',
+            experience: 5
+          }
+        };
+        
+        // Store mock token
+        localStorage.setItem('auth_token', 'mock-token-12345');
+        setUser(mockUser);
+        return mockUser;
+      }
+      
+      const response = await axios.post('/auth/login', { email, password });
       const { token, user } = response.data;
       
       localStorage.setItem('auth_token', token);
@@ -90,6 +111,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       return user;
     } catch (error: any) {
+      console.error("Login error:", error);
       const message = error.response?.data?.message || error.message || 'Login failed';
       throw new Error(message);
     }
@@ -97,6 +119,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signup = async (data: SignupData) => {
     try {
+      // Adding mock signup functionality for development
+      if (data.email.includes('@example.com')) {
+        const mockUser = {
+          id: '12345',
+          name: data.name,
+          email: data.email,
+          role: data.role,
+          status: data.role === 'instructor' ? 'pending' : 'active',
+          displayName: data.name
+        };
+        
+        if (data.role === 'instructor') {
+          mockUser.instructorProfile = {
+            specialty: data.specialty || 'General',
+            experience: data.experience || 0
+          };
+        }
+        
+        // Store mock token
+        localStorage.setItem('auth_token', 'mock-token-12345');
+        setUser(mockUser);
+        return mockUser;
+      }
+      
       let response;
       
       // Format the data for instructor signup to match the required MongoDB structure
@@ -117,10 +163,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         };
         
         // Update the endpoint to match the backend API route
-        response = await axios.post('/api/auth/signup', instructorData);
+        response = await axios.post('/auth/signup', instructorData);
       } else {
         // Use regular signup endpoint for students
-        response = await axios.post('/api/auth/signup', data);
+        response = await axios.post('/auth/signup', data);
       }
       
       const { token, user } = response.data;
