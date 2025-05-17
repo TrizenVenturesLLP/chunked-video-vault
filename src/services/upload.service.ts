@@ -21,7 +21,8 @@ export const uploadVideo = async (
   onComplete: UploadCompleteCallback,
   onError: UploadErrorCallback
 ) => {
-  const chunkSize = 10 * 1024 * 1024; // 10MB chunks
+  // Use smaller chunks to prevent buffer overflows
+  const chunkSize = 5 * 1024 * 1024; // Reduced to 5MB chunks
   const chunks = Math.ceil(file.size / chunkSize);
   
   try {
@@ -36,52 +37,77 @@ export const uploadVideo = async (
 
       try {
         console.log(`Uploading chunk ${Math.floor(start / chunkSize) + 1}/${chunks}`);
-        const response = await fetch(`${API_URL}/upload`, {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || `Chunk upload failed with status: ${response.status}`);
-        }
-
-        // Calculate accurate progress
-        const currentProgress = ((start + chunk.size) / file.size) * 100;
-        onProgress(Math.min(currentProgress, 100));
         
-        // If this is the final chunk, get the complete file info
-        if (Math.floor(start / chunkSize) === chunks - 1) {
-          const responseData = await response.json();
-          console.log("Final chunk response:", responseData);
-          
-          if (responseData.file && responseData.file.videoUrl) {
-            // Check storage mode
-            const isLocalStorage = responseData.storageMode === 'local' || 
-                                  responseData.message?.includes('local storage') ||
-                                  responseData.file.usingFallback;
+        // Add timeout and retry logic
+        let attempts = 0;
+        const maxAttempts = 3;
+        let success = false;
+        
+        while (!success && attempts < maxAttempts) {
+          try {
+            attempts++;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
             
-            // Add storage mode info if not already present
-            if (!responseData.file.storageMode) {
-              responseData.file.storageMode = isLocalStorage ? 'local' : 'cloud';
-            }
-            if (responseData.file.usingFallback === undefined) {
-              responseData.file.usingFallback = isLocalStorage;
+            const response = await fetch(`${API_URL}/upload`, {
+              method: "POST",
+              body: formData,
+              signal: controller.signal
+            });
+            
+            clearTimeout(timeoutId);
+            
+            if (!response.ok) {
+              const errorData = await response.json().catch(() => ({}));
+              throw new Error(errorData.error || `Chunk upload failed with status: ${response.status}`);
             }
             
-            onComplete(responseData.file);
-            onProgress(100); // Ensure we show 100% when complete
+            success = true;
             
-            // Show appropriate toast message
-            if (isLocalStorage) {
-              toast.info("Video uploaded to local storage (Cloud storage unavailable)", {
-                duration: 5000
-              });
-            } else {
-              toast.success("Video uploaded to cloud storage successfully");
+            // Calculate accurate progress
+            const currentProgress = ((start + chunk.size) / file.size) * 100;
+            onProgress(Math.min(currentProgress, 100));
+            
+            // If this is the final chunk, get the complete file info
+            if (Math.floor(start / chunkSize) === chunks - 1) {
+              const responseData = await response.json();
+              console.log("Final chunk response:", responseData);
+              
+              if (responseData.file && responseData.file.videoUrl) {
+                // Check storage mode
+                const isLocalStorage = responseData.storageMode === 'local' || 
+                                      responseData.message?.includes('local storage') ||
+                                      responseData.file.usingFallback;
+                
+                // Add storage mode info if not already present
+                if (!responseData.file.storageMode) {
+                  responseData.file.storageMode = isLocalStorage ? 'local' : 'cloud';
+                }
+                if (responseData.file.usingFallback === undefined) {
+                  responseData.file.usingFallback = isLocalStorage;
+                }
+                
+                onComplete(responseData.file);
+                onProgress(100); // Ensure we show 100% when complete
+                
+                // Show appropriate toast message
+                if (isLocalStorage) {
+                  toast.info("Video uploaded to local storage (Cloud storage unavailable)", {
+                    duration: 5000
+                  });
+                } else {
+                  toast.success("Video uploaded to cloud storage successfully");
+                }
+              } else {
+                throw new Error("Invalid response from server for the final chunk");
+              }
             }
-          } else {
-            throw new Error("Invalid response from server for the final chunk");
+          } catch (retryError) {
+            if (attempts >= maxAttempts) {
+              throw retryError;
+            }
+            console.log(`Chunk upload attempt ${attempts} failed, retrying...`);
+            await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retry
           }
         }
       } catch (error) {

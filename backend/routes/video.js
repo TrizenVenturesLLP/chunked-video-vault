@@ -16,7 +16,7 @@ const uploadPathChunks = path.join(process.cwd(), 'chunks');
 await fs.mkdir(uploadPath, { recursive: true });
 await fs.mkdir(uploadPathChunks, { recursive: true });
 
-// Setup MinIO client with better configuration
+// Setup MinIO client with better error handling
 const minioClient = new Client({
   endPoint: process.env.MINIO_ENDPOINT || 'lmsbackendminio-api.llp.trizenventures.com',
   port: parseInt(process.env.MINIO_PORT) || 443,
@@ -43,31 +43,12 @@ let minioAvailable = false;
       if (!bucketExists) {
         await minioClient.makeBucket(bucketName);
         console.log(`Created bucket: ${bucketName}`);
-        
-        // Set bucket policy to public (optional)
-        const policy = {
-          Version: '2012-10-17',
-          Statement: [
-            {
-              Effect: 'Allow',
-              Principal: { AWS: ['*'] },
-              Action: ['s3:GetObject'],
-              Resource: [`arn:aws:s3:::${bucketName}/*`]
-            }
-          ]
-        };
-        
-        try {
-          await minioClient.setBucketPolicy(bucketName, JSON.stringify(policy));
-          console.log(`Set public read policy on bucket: ${bucketName}`);
-        } catch (policyError) {
-          console.error('Error setting bucket policy (non-fatal):', policyError);
-        }
       } else {
         console.log(`Bucket ${bucketName} already exists.`);
       }
     } catch (bucketErr) {
       console.error('Error checking/creating bucket:', bucketErr);
+      minioAvailable = false;
     }
   } catch (error) {
     console.error('MinIO connection failed:', error.message);
@@ -145,6 +126,8 @@ router.post('/upload', upload.single('video'), async (req, res) => {
         // Setup variables for storing upload status
         let uploadedToCloud = false;
         let videoUrl = '';
+        let storageMode = 'local';
+        const localVideoUrl = `http://${req.get('host')}/uploads/${fileName}`;
         const baseURL = `http://${process.env.MINIO_ENDPOINT || 'lmsbackendminio-api.llp.trizenventures.com'}:${process.env.MINIO_PORT || 443}/${bucketName}/`;
         
         // Only attempt cloud upload if MinIO is available
@@ -152,32 +135,50 @@ router.post('/upload', upload.single('video'), async (req, res) => {
           try {
             console.log(`Uploading ${fileName} to MinIO bucket ${bucketName}`);
             
-            // Read file buffer and upload with timeout
+            // Stream file to MinIO instead of loading it all into memory
             const filePath = path.join(uploadPath, fileName);
-            const fileBuffer = await fs.promises.readFile(filePath);
+            const fileStream = fs.createReadStream(filePath);
             
-            // Set a timeout for MinIO operations
-            const UPLOAD_TIMEOUT = 30000; // 30 seconds
+            // Set up a promise with timeout for MinIO operations
+            const UPLOAD_TIMEOUT = 45000; // 45 seconds timeout
             
-            // Try to upload with a timeout
-            await Promise.race([
-              minioClient.putObject(bucketName, fileName, fileBuffer),
-              new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('MinIO upload timeout')), UPLOAD_TIMEOUT)
-              )
-            ]);
+            const uploadWithTimeout = async () => {
+              return Promise.race([
+                new Promise((resolve, reject) => {
+                  minioClient.fPutObject(bucketName, fileName, filePath, (err, etag) => {
+                    if (err) {
+                      console.error('MinIO fPutObject error:', err);
+                      reject(err);
+                    } else {
+                      console.log('MinIO upload successful with etag:', etag);
+                      resolve(etag);
+                    }
+                  });
+                }),
+                new Promise((_, reject) => 
+                  setTimeout(() => reject(new Error('MinIO upload timeout')), UPLOAD_TIMEOUT)
+                )
+              ]);
+            };
             
-            uploadedToCloud = true;
-            console.log(`File ${fileName} uploaded to MinIO successfully`);
-            
-            // Generate a presigned URL for the uploaded video
             try {
-              videoUrl = await minioClient.presignedGetObject(bucketName, fileName, 24 * 60 * 60); // 24 hour expiry
-              console.log('Generated presigned URL:', videoUrl);
-            } catch (urlError) {
-              console.error('Error generating presigned URL:', urlError);
-              videoUrl = `${baseURL}${fileName}`;
-              console.log('Fallback URL:', videoUrl);
+              await uploadWithTimeout();
+              uploadedToCloud = true;
+              storageMode = 'cloud';
+              console.log(`File ${fileName} uploaded to MinIO successfully`);
+              
+              // Generate a presigned URL for the uploaded video
+              try {
+                videoUrl = await minioClient.presignedGetObject(bucketName, fileName, 24 * 60 * 60); // 24 hour expiry
+                console.log('Generated presigned URL:', videoUrl);
+              } catch (urlError) {
+                console.error('Error generating presigned URL:', urlError);
+                videoUrl = `${baseURL}${fileName}`;
+                console.log('Fallback URL:', videoUrl);
+              }
+            } catch (timeoutError) {
+              console.error('MinIO upload timed out or failed:', timeoutError);
+              throw timeoutError;
             }
           } catch (minioError) {
             console.error('Error uploading to MinIO:', minioError);
@@ -188,7 +189,7 @@ router.post('/upload', upload.single('video'), async (req, res) => {
         // If cloud upload failed, use local storage fallback
         if (!uploadedToCloud) {
           console.log('Using local storage fallback');
-          videoUrl = `http://${req.get('host')}/uploads/${fileName}`;
+          videoUrl = localVideoUrl;
           
           return res.status(200).json({
             message: 'File processed but cloud storage unavailable. Using local storage.',
@@ -200,7 +201,8 @@ router.post('/upload', upload.single('video'), async (req, res) => {
               mimetype: req.file.mimetype,
               baseURL: baseURL,
               videoUrl: videoUrl,
-              usingFallback: true
+              usingFallback: true,
+              storageMode: 'local'
             }
           });
         }
@@ -216,7 +218,8 @@ router.post('/upload', upload.single('video'), async (req, res) => {
             mimetype: req.file.mimetype,
             baseURL: baseURL,
             videoUrl: videoUrl,
-            usingFallback: false
+            usingFallback: false,
+            storageMode: 'cloud'
           }
         });
       } catch (mergeError) {
@@ -248,6 +251,10 @@ router.post('/upload', upload.single('video'), async (req, res) => {
   }
 });
 
+// Serve uploaded files
+router.use('/uploads', express.static(uploadPath));
+
+// Merge chunks helper function with improved error handling
 const MAX_RETRIES = 5;
 const RETRY_DELAY = 1000; // 1 second
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -304,9 +311,6 @@ async function mergeChunks(fileName, totalChunks) {
   writeStream.end();
   console.log('All chunks merged successfully');
 }
-
-// Add a route to serve files from the uploads directory
-router.use('/uploads', express.static(uploadPath));
 
 router.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
