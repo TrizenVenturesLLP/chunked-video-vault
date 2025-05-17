@@ -101,12 +101,17 @@ router.post('/upload', upload.single('video'), async (req, res) => {
       
       // Upload to MinIO after merging chunks
       try {
-        const fileBuffer = await fs.promises.readFile(path.join(uploadPath, fileName));
-        await minioClient.putObject(bucketName, fileName, fileBuffer);
+        const filePath = path.join(uploadPath, fileName);
+        console.log(`Uploading ${filePath} to MinIO bucket ${bucketName}`);
+        
+        await minioClient.fPutObject(bucketName, fileName, filePath);
         console.log(`File ${fileName} uploaded to MinIO successfully`);
-      } catch (error) {
-        console.error('Error uploading to MinIO:', error);
-        throw new Error('Failed to upload file to storage');
+      } catch (minioError) {
+        console.error('Error uploading to MinIO:', minioError);
+        return res.status(500).json({ 
+          error: 'Failed to upload file to storage', 
+          details: minioError.message 
+        });
       }
     }
 
@@ -115,10 +120,12 @@ router.post('/upload', upload.single('video'), async (req, res) => {
     try {
       if (chunkNumber === totalChunks - 1) { 
         videoUrl = await minioClient.presignedGetObject(bucketName, fileName, 24 * 60 * 60); // 24 hour expiry
+        console.log('Generated presigned URL:', videoUrl);
       }
     } catch (error) {
       console.error('Error generating presigned URL:', error);
       videoUrl = `http://${process.env.MINIO_ENDPOINT}:${process.env.MINIO_PORT}/${bucketName}/${fileName}`;
+      console.log('Fallback URL:', videoUrl);
     }
 
     const fileInfo = {
@@ -129,6 +136,9 @@ router.post('/upload', upload.single('video'), async (req, res) => {
       baseURL: `http://${process.env.MINIO_ENDPOINT}:${process.env.MINIO_PORT}/${bucketName}/`,
       videoUrl: videoUrl || `http://${process.env.MINIO_ENDPOINT}:${process.env.MINIO_PORT}/${bucketName}/${fileName}`,
     };
+
+    console.log('Sending response for chunk:', chunkNumber, 'of', totalChunks);
+    console.log('File info:', fileInfo);
 
     res.status(200).json({
       message: 'Chunk uploaded successfully',

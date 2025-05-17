@@ -46,14 +46,20 @@ export const uploadVideo = async (
           throw new Error(errorData.error || `Chunk upload failed with status: ${response.status}`);
         }
 
-        // Calculate and report progress
-        const progress = Math.min(((start + chunk.size) / file.size) * 100, 99);
-        onProgress(progress);
-
-        // If this is the final chunk, parse the response for file info
+        // Calculate accurate progress
+        const currentProgress = ((start + chunk.size) / file.size) * 100;
+        onProgress(Math.min(currentProgress, 100));
+        
+        // If this is the final chunk, get the complete file info
         if (Math.floor(start / chunkSize) === chunks - 1) {
           const responseData = await response.json();
-          onComplete(responseData.file);
+          console.log("Final chunk response:", responseData);
+          if (responseData.file && responseData.file.videoUrl) {
+            onComplete(responseData.file);
+            onProgress(100); // Ensure we show 100% when complete
+          } else {
+            throw new Error("Invalid response from server for the final chunk");
+          }
         }
       } catch (error) {
         console.error("Error uploading chunk:", error);
