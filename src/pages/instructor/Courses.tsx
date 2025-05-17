@@ -15,21 +15,12 @@ import {
 } from 'lucide-react';
 import { useInstructorCourses } from '@/services/courseService';
 import CourseCard from '@/components/instructor/CourseCard';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import { useToast } from '@/hooks/use-toast';
 
 const Courses = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   
   // Fetch instructor courses
   const { data: courses = [], isLoading, error } = useInstructorCourses();
@@ -41,19 +32,14 @@ const Courses = () => {
   );
 
   const handleCreateCourse = () => {
-    // For now, just show toast and close dialog
-    toast({
-      title: "Coming soon!",
-      description: "Course creation functionality will be available soon."
-    });
-    setIsCreateDialogOpen(false);
+    navigate('/instructor/courses/create');
   };
 
   return (
     <div className="space-y-6 p-4 sm:p-6 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-3xl font-bold">My Courses</h1>
-        <Button onClick={() => setIsCreateDialogOpen(true)}>
+        <Button onClick={handleCreateCourse}>
           <PlusCircle className="h-4 w-4 mr-2" />
           Create New Course
         </Button>
@@ -88,27 +74,6 @@ const Courses = () => {
           ))}
         </div>
       )}
-      
-      {/* Create Course Dialog */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Create New Course</DialogTitle>
-            <DialogDescription>
-              Start creating a new course for your students.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <p className="text-center text-sm text-muted-foreground">
-              This feature is coming soon. You'll be able to create and manage courses, add modules, lessons, and more.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleCreateCourse}>Create Course</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
