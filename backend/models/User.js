@@ -29,8 +29,14 @@ const userSchema = new mongoose.Schema({
     type: String
   },
   instructorProfile: {
-    specialty: String,
-    experience: Number,
+    specialty: {
+      type: String,
+      default: 'General'
+    },
+    experience: {
+      type: Number,
+      default: 0
+    },
     rating: {
       type: Number,
       default: 0

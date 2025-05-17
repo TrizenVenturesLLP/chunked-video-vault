@@ -2,6 +2,7 @@
 import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
 import axios from '@/lib/axios';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 
 // Export the User interface so it can be imported elsewhere
 export interface User {
@@ -24,9 +25,9 @@ interface SignupData {
   name: string;
   email: string;
   password: string;
-  role: 'student' | 'instructor';
+  role?: 'student' | 'instructor';
   specialty?: string;
-  experience?: number;
+  experience?: number | string;
 }
 
 interface AuthContextType {
@@ -105,12 +106,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signup = async (data: SignupData) => {
     try {
+      // Ensure all required fields have default values if not provided
+      const signupData = {
+        name: data.name,
+        email: data.email,
+        password: data.password,
+        role: data.role || 'student',
+        specialty: data.specialty || 'General',
+        experience: data.experience !== undefined ? Number(data.experience) : 0
+      };
+
+      console.log("Sending signup data:", signupData);
+      
       // Determine the endpoint based on the role
-      const endpoint = data.role === 'instructor' 
+      const endpoint = signupData.role === 'instructor' 
         ? '/api/auth/instructor-signup' 
         : '/api/auth/signup';
       
-      const response = await axios.post(endpoint, data);
+      const response = await axios.post(endpoint, signupData);
       
       // Store token and user data
       localStorage.setItem('auth_token', response.data.token);

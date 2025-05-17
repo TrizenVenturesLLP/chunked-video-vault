@@ -53,8 +53,8 @@ app.get('/', (req, res) => {
 });
 
 // API routes
-app.use('/api', videoRouter);
 app.use('/api/auth', authRouter);
+app.use('/api', videoRouter);
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => {

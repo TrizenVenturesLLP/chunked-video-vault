@@ -98,18 +98,11 @@ router.post('/login', async (req, res) => {
 // Signup route
 router.post('/signup', async (req, res) => {
   try {
-    const { name, email, password, role, specialty, experience } = req.body;
+    const { name, email, password, role = 'student' } = req.body;
 
     // Validate required fields
     if (!name || !email || !password) {
-      return res.status(400).json({ message: 'Required fields missing' });
-    }
-
-    // Additional validation for instructor signup
-    if (role === 'instructor' && (!specialty || !experience)) {
-      return res.status(400).json({ 
-        message: 'Specialty and experience required for instructor signup' 
-      });
+      return res.status(400).json({ message: 'Name, email, and password are required' });
     }
 
     // Check if email exists
@@ -131,16 +124,15 @@ router.post('/signup', async (req, res) => {
       displayName: name
     };
 
-    // Add instructor profile if role is instructor
+    // Initialize instructor profile with defaults if role is instructor
     if (role === 'instructor') {
       userData.instructorProfile = {
-        specialty,
-        experience: Number(experience) || 0,
+        specialty: req.body.specialty || 'General',
+        experience: Number(req.body.experience) || 0,
         rating: 0,
         totalReviews: 0,
         courses: []
       };
-      userData.status = 'pending';
     }
 
     const user = new User(userData);
@@ -170,11 +162,13 @@ router.post('/signup', async (req, res) => {
 // Instructor signup route
 router.post('/instructor-signup', async (req, res) => {
   try {
-    const { name, email, password, specialty, experience } = req.body;
+    const { name, email, password } = req.body;
+    const specialty = req.body.specialty || 'General';
+    const experience = Number(req.body.experience) || 0;
 
-    // Validate required fields
-    if (!name || !email || !password || !specialty || !experience) {
-      return res.status(400).json({ message: 'All fields are required' });
+    // Validate required fields - only name, email, password are truly required now
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: 'Name, email, and password are required' });
     }
 
     // Check if email already exists
@@ -187,7 +181,7 @@ router.post('/instructor-signup', async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create new instructor
+    // Create new instructor with default values for missing fields
     const instructor = new User({
       name,
       email,
@@ -197,7 +191,7 @@ router.post('/instructor-signup', async (req, res) => {
       displayName: name,
       instructorProfile: {
         specialty,
-        experience: Number(experience),
+        experience,
         rating: 0,
         totalReviews: 0,
         courses: []
