@@ -68,7 +68,7 @@ const InstructorSignup = () => {
         password: values.password,
         role: 'instructor' as const,
         specialty: values.specialty,
-        experience: parseInt(values.experience, 10) || 0
+        experience: Number(values.experience) || 0
       };
 
       await signup(signupData);

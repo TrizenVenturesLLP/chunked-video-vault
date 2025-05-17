@@ -116,8 +116,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
         };
         
-        // Use instructor-specific signup endpoint
-        response = await axios.post('/api/auth/instructor-signup', instructorData);
+        // Update the endpoint to match the backend API route
+        response = await axios.post('/api/auth/signup', instructorData);
       } else {
         // Use regular signup endpoint for students
         response = await axios.post('/api/auth/signup', data);
@@ -130,6 +130,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       return user;
     } catch (error: any) {
+      console.error("Signup error details:", error.response || error);
       const message = error.response?.data?.message || error.message || 'Signup failed';
       throw new Error(message);
     }
