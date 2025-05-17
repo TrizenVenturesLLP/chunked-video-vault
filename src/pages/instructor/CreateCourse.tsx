@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -22,7 +21,7 @@ import VideoUploader from '@/components/VideoUploader';
 import { UploadedFile } from '@/components/VideoUploader';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { AuthContext } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 const TABS = [
   { id: "basic-info", label: "Basic Information" },
@@ -59,7 +58,7 @@ const CreateCourse = () => {
   const [activeTab, setActiveTab] = useState<string>("basic-info");
   const [roadmapDays, setRoadmapDays] = useState<any[]>([{ day: 1, topics: "", video: "", mcqs: [] }]);
   const [uploadedFile, setUploadedFile] = useState<UploadedFile | null>(null);
-  const { user } = useContext(AuthContext);
+  const { user } = useAuth();
   
   const { mutate: createCourse, isPending } = useCreateCourse();
   

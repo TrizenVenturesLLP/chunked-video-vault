@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { X } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext'; // Changed from importing AuthContext directly
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -10,7 +10,7 @@ import Header from '@/components/instructor/Header';
 import Sidebar from '@/components/instructor/Sidebar';
 
 const InstructorLayout = () => {
-  const { logout, user } = useAuth();
+  const { logout, user } = useAuth(); // Using useAuth hook instead of destructuring from AuthContext
   const { toast } = useToast(); 
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
