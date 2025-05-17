@@ -13,7 +13,7 @@ dotenv.config();
 const app = express();
 
 app.use(express.json({
-  limit: '500MB',
+  limit: '1000MB',
 }));
 
 // Enable CORS for all routes
@@ -30,7 +30,7 @@ app.use(morgan('dev'));
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).send('File size limit exceeded (max 500MB).');
+      return res.status(400).send('File size limit exceeded (max 1000MB).');
     }
   }
   res.status(500).send(err.message);

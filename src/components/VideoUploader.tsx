@@ -151,7 +151,7 @@ const VideoUploader = ({ onUploadComplete }: VideoUploaderProps) => {
                   {selectedFile ? 'Change video file' : 'Upload a video file'}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Drag and drop or click to upload (max 500MB)
+                  Drag and drop or click to upload (max 1000MB)
                 </p>
               </div>
             </div>

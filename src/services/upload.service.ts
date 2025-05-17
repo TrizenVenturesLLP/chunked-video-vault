@@ -76,9 +76,9 @@ export const validateVideoFile = (file: File): string | null => {
     return "Please select a valid video file";
   }
 
-  // 500MB limit
-  if (file.size > 500 * 1024 * 1024) {
-    return "The file size exceeds 500MB. Please upload a smaller file.";
+  // 1000MB limit
+  if (file.size > 1000 * 1024 * 1024) {
+    return "The file size exceeds 1000MB. Please upload a smaller file.";
   }
 
   return null;
