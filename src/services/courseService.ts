@@ -205,31 +205,7 @@ const mockStudents: Record<string, Student[]> = {
   ]
 };
 
-// API hooks
-export const useInstructorCourses = () => {
-  return useQuery({
-    queryKey: ['instructor-courses'],
-    queryFn: async () => {
-      // In a real app, this would be an API call
-      // return await axios.get('/api/instructor/courses');
-      return mockCourses;
-    }
-  });
-};
-
-export const useCourseDetails = (courseId?: string) => {
-  return useQuery({
-    queryKey: ['course', courseId],
-    queryFn: async () => {
-      if (!courseId) return null;
-      // In a real app, this would be an API call
-      // return await axios.get(`/api/courses/${courseId}`);
-      return mockCourses.find(course => course._id === courseId) || null;
-    },
-    enabled: !!courseId
-  });
-};
-
+// Course students hooks
 export const useCourseStudents = (courseId?: string) => {
   return useQuery({
     queryKey: ['course-students', courseId],
