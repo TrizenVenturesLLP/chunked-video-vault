@@ -27,9 +27,29 @@ const minioClient = new Client({
 
 // Ensure the bucket exists
 const bucketName = process.env.MINIO_BUCKET || 'video-bucket';
+let minioAvailable = false;
+
+// Check MinIO connection status
+(async function checkMinioConnection() {
+  try {
+    console.log('Testing MinIO connection...');
+    await minioClient.listBuckets();
+    console.log('MinIO connection successful');
+    minioAvailable = true;
+  } catch (error) {
+    console.error('MinIO connection failed:', error.message);
+    minioAvailable = false;
+    console.log('Will use local storage fallback for video uploads');
+  }
+})();
 
 // Create bucket with more robust error handling
 (async function initializeBucket() {
+  if (!minioAvailable) {
+    console.log('Skipping bucket initialization as MinIO is not available');
+    return;
+  }
+  
   try {
     console.log('Checking if bucket exists:', bucketName);
     const bucketExists = await minioClient.bucketExists(bucketName);
@@ -63,7 +83,8 @@ const bucketName = process.env.MINIO_BUCKET || 'video-bucket';
     }
   } catch (err) {
     console.error('Error checking/creating bucket:', err);
-    console.log('Will attempt to create bucket on first upload if needed.');
+    console.log('Using local storage fallback');
+    minioAvailable = false;
   }
 })();
 
@@ -133,51 +154,59 @@ router.post('/upload', upload.single('video'), async (req, res) => {
         await mergeChunks(fileName, totalChunks);
         console.log(`All chunks merged for ${fileName}`);
         
-        // Before uploading to MinIO, make sure the bucket exists (double-check)
-        let bucketExists = false;
-        try {
-          bucketExists = await minioClient.bucketExists(bucketName);
-        } catch (bucketError) {
-          console.error('Error checking bucket existence:', bucketError);
-        }
-        
-        // Create bucket if it still doesn't exist
-        if (!bucketExists) {
-          try {
-            console.log(`Bucket ${bucketName} does not exist, creating it now...`);
-            await minioClient.makeBucket(bucketName);
-            console.log(`Created bucket: ${bucketName}`);
-          } catch (makeBucketError) {
-            console.error('Error creating bucket:', makeBucketError);
-            return res.status(500).json({ 
-              error: 'Failed to create storage bucket', 
-              details: makeBucketError.message 
-            });
-          }
-        }
-        
-        // Upload to MinIO after merging chunks
         const filePath = path.join(uploadPath, fileName);
-        console.log(`Uploading ${filePath} to MinIO bucket ${bucketName}`);
+        let uploadedToCloud = false;
+        let videoUrl = '';
         
-        try {
-          await minioClient.fPutObject(bucketName, fileName, filePath);
-          console.log(`File ${fileName} uploaded to MinIO successfully`);
-        } catch (minioError) {
-          console.error('Error uploading to MinIO:', minioError);
+        // Check MinIO availability before attempting upload
+        if (minioAvailable) {
+          try {
+            // Set a timeout for MinIO operations to prevent long delays
+            console.log(`Uploading ${filePath} to MinIO bucket ${bucketName}`);
+            
+            // Try to upload with a timeout
+            await Promise.race([
+              minioClient.fPutObject(bucketName, fileName, filePath),
+              new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('MinIO upload timeout')), 10000)
+              )
+            ]);
+            
+            console.log(`File ${fileName} uploaded to MinIO successfully`);
+            uploadedToCloud = true;
+            
+            try {
+              videoUrl = await minioClient.presignedGetObject(bucketName, fileName, 24 * 60 * 60);
+              console.log('Generated presigned URL:', videoUrl);
+            } catch (urlError) {
+              console.error('Error generating presigned URL:', urlError);
+              videoUrl = `http://${process.env.MINIO_ENDPOINT || 'lmsbackendminio-api.llp.trizenventures.com'}:${process.env.MINIO_PORT || 443}/${bucketName}/${fileName}`;
+              console.log('Fallback URL:', videoUrl);
+            }
+          } catch (minioError) {
+            console.error('Error uploading to MinIO:', minioError);
+            uploadedToCloud = false;
+          }
+        } else {
+          console.log('MinIO not available, using local storage');
+        }
+        
+        if (!uploadedToCloud) {
+          // Use local storage fallback
+          console.log('Using local storage fallback');
+          videoUrl = `http://${req.get('host')}/uploads/${fileName}`;
           
-          // Provide fallback URL if MinIO upload fails
-          const fallbackUrl = `http://${process.env.MINIO_ENDPOINT || 'localhost'}:${process.env.MINIO_PORT || 9000}/${bucketName}/${fileName}`;
-          
+          // Send fallback response
           return res.status(200).json({
             message: 'File processed but cloud storage unavailable. Using local storage.',
+            storageMode: 'local',
             file: {
               filename: fileName,
               originalName: req.body.originalname,
               size: req.file.size,
               mimetype: req.file.mimetype,
-              baseURL: `http://${process.env.MINIO_ENDPOINT || 'localhost'}:${process.env.MINIO_PORT || 9000}/${bucketName}/`,
-              videoUrl: fallbackUrl,
+              baseURL: `http://${process.env.MINIO_ENDPOINT || 'lmsbackendminio-api.llp.trizenventures.com'}:${process.env.MINIO_PORT || 443}/${bucketName}/`,
+              videoUrl: videoUrl,
             }
           });
         }
@@ -190,17 +219,12 @@ router.post('/upload', upload.single('video'), async (req, res) => {
       }
     }
 
-    // Generate a presigned URL for the uploaded video
+    // For successful uploads, return appropriate response
+    const baseURL = `http://${process.env.MINIO_ENDPOINT || 'lmsbackendminio-api.llp.trizenventures.com'}:${process.env.MINIO_PORT || 443}/${bucketName}/`;
     let videoUrl = '';
-    try {
-      if (chunkNumber === totalChunks - 1) { 
-        videoUrl = await minioClient.presignedGetObject(bucketName, fileName, 24 * 60 * 60); // 24 hour expiry
-        console.log('Generated presigned URL:', videoUrl);
-      }
-    } catch (error) {
-      console.error('Error generating presigned URL:', error);
-      videoUrl = `http://${process.env.MINIO_ENDPOINT || 'localhost'}:${process.env.MINIO_PORT || 9000}/${bucketName}/${fileName}`;
-      console.log('Fallback URL:', videoUrl);
+    
+    if (chunkNumber === totalChunks - 1) {
+      videoUrl = baseURL + fileName;
     }
 
     const fileInfo = {
@@ -208,8 +232,9 @@ router.post('/upload', upload.single('video'), async (req, res) => {
       originalName: req.body.originalname,
       size: req.file.size,
       mimetype: req.file.mimetype,
-      baseURL: `http://${process.env.MINIO_ENDPOINT || 'localhost'}:${process.env.MINIO_PORT || 9000}/${bucketName}/`,
-      videoUrl: videoUrl || `http://${process.env.MINIO_ENDPOINT || 'localhost'}:${process.env.MINIO_PORT || 9000}/${bucketName}/${fileName}`,
+      baseURL: baseURL,
+      videoUrl: videoUrl,
+      storageMode: minioAvailable ? 'cloud' : 'local'
     };
 
     console.log('Sending response for chunk:', chunkNumber, 'of', totalChunks);
@@ -286,6 +311,9 @@ async function mergeChunks(fileName, totalChunks) {
   writeStream.end();
   console.log('All chunks merged successfully');
 }
+
+// Add a route to serve files from the uploads directory
+router.use('/uploads', express.static(uploadPath));
 
 router.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {

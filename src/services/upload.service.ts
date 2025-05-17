@@ -55,8 +55,26 @@ export const uploadVideo = async (
           const responseData = await response.json();
           console.log("Final chunk response:", responseData);
           if (responseData.file && responseData.file.videoUrl) {
+            // Check if using local storage fallback
+            const isLocalStorage = responseData.message && 
+                responseData.message.includes('cloud storage unavailable') || 
+                responseData.storageMode === 'local';
+                
+            // Add storage mode info
+            responseData.file.storageMode = isLocalStorage ? 'local' : 'cloud';
+            responseData.file.usingFallback = isLocalStorage;
+            
             onComplete(responseData.file);
             onProgress(100); // Ensure we show 100% when complete
+            
+            // Show appropriate toast message
+            if (isLocalStorage) {
+              toast.info("Video uploaded to local storage (Cloud storage unavailable)", {
+                duration: 5000
+              });
+            } else {
+              toast.success("Video uploaded to cloud storage successfully");
+            }
           } else {
             throw new Error("Invalid response from server for the final chunk");
           }

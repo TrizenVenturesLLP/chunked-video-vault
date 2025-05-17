@@ -2,7 +2,7 @@
 import { useState, useRef, ChangeEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, FileVideo, CheckCircle, Loader2 } from "lucide-react";
+import { Upload, FileVideo, CheckCircle, Loader2, AlertCircle, Cloud, HardDrive } from "lucide-react";
 import { toast } from "sonner";
 import { uploadVideo, validateVideoFile } from "@/services/upload.service";
 import { cn } from "@/lib/utils";
@@ -14,6 +14,8 @@ export interface UploadedFile {
   mimetype: string;
   videoUrl: string;
   baseURL: string;
+  storageMode?: 'local' | 'cloud';
+  usingFallback?: boolean;
 }
 
 interface VideoUploaderProps {
@@ -65,7 +67,6 @@ const VideoUploader = ({ onUploadComplete }: VideoUploaderProps) => {
         if (onUploadComplete) {
           onUploadComplete(fileInfo);
         }
-        toast.success("Video uploaded successfully!");
       },
       (error) => {
         setIsUploading(false);
@@ -188,11 +189,24 @@ const VideoUploader = ({ onUploadComplete }: VideoUploaderProps) => {
             {uploadedFile && (
               <div className="flex items-center bg-green-50 dark:bg-green-900/20 p-3 rounded-md">
                 <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-500 mr-4" />
-                <div>
+                <div className="flex-1">
                   <p className="font-medium">Upload Complete</p>
                   <p className="text-sm text-muted-foreground truncate">
                     {uploadedFile.originalName}
                   </p>
+                  <div className="flex items-center mt-1 text-xs">
+                    {uploadedFile.storageMode === 'local' || uploadedFile.usingFallback ? (
+                      <>
+                        <HardDrive className="h-3 w-3 mr-1 text-amber-500" />
+                        <span className="text-amber-600 dark:text-amber-400">Using local storage (cloud unavailable)</span>
+                      </>
+                    ) : (
+                      <>
+                        <Cloud className="h-3 w-3 mr-1 text-blue-500" />
+                        <span className="text-blue-600 dark:text-blue-400">Stored in cloud</span>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -231,6 +245,23 @@ const VideoUploader = ({ onUploadComplete }: VideoUploaderProps) => {
             >
               {uploadedFile.videoUrl}
             </a>
+            
+            {(uploadedFile.storageMode === 'local' || uploadedFile.usingFallback) && (
+              <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-md w-full">
+                <div className="flex items-start">
+                  <AlertCircle className="h-5 w-5 text-amber-500 mr-2 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                      Local Storage Mode
+                    </p>
+                    <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
+                      Cloud storage is currently unavailable. Your video is stored locally and might 
+                      not be accessible from other devices or locations.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </CardFooter>
         )}
       </Card>
