@@ -3,25 +3,12 @@ import express from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
-import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-
-// Configure nodemailer
-let transporter;
-if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-  transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS
-    }
-  });
-}
 
 // Authentication middleware
 export const authenticate = (req, res, next) => {
@@ -199,46 +186,10 @@ router.post('/instructor-signup', async (req, res) => {
     });
 
     await instructor.save();
+    console.log('Instructor saved to database:', instructor);
 
     // Create token
     const token = jwt.sign({ id: instructor._id, role: instructor.role }, JWT_SECRET, { expiresIn: '1d' });
-
-    // Send welcome email if transporter is configured
-    if (transporter) {
-      try {
-        const mailOptions = {
-          from: `"Trizen Team" <${process.env.EMAIL_USER}>`,
-          to: instructor.email,
-          subject: 'Welcome to Trizen - Instructor Application Received',
-          html: `
-            <div style="font-family: Arial, sans-serif; color: #333;">
-              <h2 style="color: #007BFF;">Welcome to Trizen!</h2>
-              <p>Dear ${name},</p>
-              <p>Thank you for applying to become an instructor at Trizen. We're excited to have you join our teaching community!</p>
-              <p>Your application is currently under review. Here's what happens next:</p>
-              <ul>
-                <li>Our team will review your application and credentials</li>
-                <li>You'll receive an email once your application is approved</li>
-                <li>After approval, you can start creating and publishing courses</li>
-              </ul>
-              <p>While you wait, you can:</p>
-              <ul>
-                <li>Complete your instructor profile</li>
-                <li>Prepare your course materials</li>
-                <li>Review our instructor guidelines</li>
-              </ul>
-              <p>If you have any questions, feel free to contact our support team.</p>
-              <p>Best regards,<br>The Trizen Team</p>
-            </div>
-          `
-        };
-
-        await transporter.sendMail(mailOptions);
-      } catch (emailError) {
-        console.error('Failed to send welcome email:', emailError);
-        // Continue with the signup process even if email fails
-      }
-    }
 
     // Send response
     res.status(201).json({

@@ -13,10 +13,20 @@ import jwt from 'jsonwebtoken';
 // Load environment variables
 dotenv.config();
 
-// Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('MongoDB connected successfully'))
-  .catch(err => console.error('MongoDB connection error:', err));
+// Connect to MongoDB with improved error handling
+const connectDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGODB_URI);
+    console.log('MongoDB connected successfully');
+  } catch (err) {
+    console.error('MongoDB connection error:', err);
+    // Exit process with failure
+    process.exit(1);
+  }
+};
+
+// Call the connect function
+connectDB();
 
 const app = express();
 
@@ -42,6 +52,7 @@ app.use((err, req, res, next) => {
       return res.status(400).send('File size limit exceeded (max 1000MB).');
     }
   }
+  console.error('Server error:', err.stack);
   res.status(500).send(err.message);
 });
 

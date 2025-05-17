@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -36,13 +35,19 @@ const Login = () => {
   // Effect to redirect if already logged in
   useEffect(() => {
     if (isAuthenticated && user) {
-      if (user.role === 'instructor') {
-        navigate('/instructor/dashboard');
-      } else {
-        navigate('/courses');
-      }
+      navigateBasedOnRole(user.role);
     }
   }, [isAuthenticated, user, navigate]);
+
+  // Function to handle navigation based on user role
+  const navigateBasedOnRole = (role?: string) => {
+    if (role === 'instructor') {
+      navigate('/instructor/dashboard');
+    } else {
+      // Default navigation for other roles (like students)
+      navigate('/courses');
+    }
+  };
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
@@ -58,7 +63,8 @@ const Login = () => {
     try {
       await login(values.email, values.password);
       
-      // Navigation will be handled by the useEffect when user state updates
+      // Navigate based on user role - this will be called after the user state is updated
+      // by the login function, which is picked up by the useEffect above
       
     } catch (error: any) {
       console.error('Login error:', error);
