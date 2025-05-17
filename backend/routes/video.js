@@ -16,7 +16,7 @@ const uploadPathChunks = path.join(process.cwd(), 'chunks');
 await fs.mkdir(uploadPath, { recursive: true });
 await fs.mkdir(uploadPathChunks, { recursive: true });
 
-// Setup MinIO client with better error handling
+// Setup MinIO client with better configuration
 const minioClient = new Client({
   endPoint: process.env.MINIO_ENDPOINT || 'lmsbackendminio-api.llp.trizenventures.com',
   port: parseInt(process.env.MINIO_PORT) || 443,
@@ -36,55 +36,43 @@ let minioAvailable = false;
     await minioClient.listBuckets();
     console.log('MinIO connection successful');
     minioAvailable = true;
+    
+    // Create bucket if it doesn't exist
+    try {
+      const bucketExists = await minioClient.bucketExists(bucketName);
+      if (!bucketExists) {
+        await minioClient.makeBucket(bucketName);
+        console.log(`Created bucket: ${bucketName}`);
+        
+        // Set bucket policy to public (optional)
+        const policy = {
+          Version: '2012-10-17',
+          Statement: [
+            {
+              Effect: 'Allow',
+              Principal: { AWS: ['*'] },
+              Action: ['s3:GetObject'],
+              Resource: [`arn:aws:s3:::${bucketName}/*`]
+            }
+          ]
+        };
+        
+        try {
+          await minioClient.setBucketPolicy(bucketName, JSON.stringify(policy));
+          console.log(`Set public read policy on bucket: ${bucketName}`);
+        } catch (policyError) {
+          console.error('Error setting bucket policy (non-fatal):', policyError);
+        }
+      } else {
+        console.log(`Bucket ${bucketName} already exists.`);
+      }
+    } catch (bucketErr) {
+      console.error('Error checking/creating bucket:', bucketErr);
+    }
   } catch (error) {
     console.error('MinIO connection failed:', error.message);
     minioAvailable = false;
     console.log('Will use local storage fallback for video uploads');
-  }
-})();
-
-// Create bucket with more robust error handling
-(async function initializeBucket() {
-  if (!minioAvailable) {
-    console.log('Skipping bucket initialization as MinIO is not available');
-    return;
-  }
-  
-  try {
-    console.log('Checking if bucket exists:', bucketName);
-    const bucketExists = await minioClient.bucketExists(bucketName);
-    
-    if (!bucketExists) {
-      console.log(`Bucket ${bucketName} does not exist. Creating it...`);
-      await minioClient.makeBucket(bucketName);
-      console.log(`Created bucket: ${bucketName}`);
-      
-      // Set bucket policy to public (optional - only if you want public access)
-      const policy = {
-        Version: '2012-10-17',
-        Statement: [
-          {
-            Effect: 'Allow',
-            Principal: { AWS: ['*'] },
-            Action: ['s3:GetObject'],
-            Resource: [`arn:aws:s3:::${bucketName}/*`]
-          }
-        ]
-      };
-      
-      try {
-        await minioClient.setBucketPolicy(bucketName, JSON.stringify(policy));
-        console.log(`Set public read policy on bucket: ${bucketName}`);
-      } catch (policyError) {
-        console.error('Error setting bucket policy (non-fatal):', policyError);
-      }
-    } else {
-      console.log(`Bucket ${bucketName} already exists.`);
-    }
-  } catch (err) {
-    console.error('Error checking/creating bucket:', err);
-    console.log('Using local storage fallback');
-    minioAvailable = false;
   }
 })();
 
@@ -154,49 +142,54 @@ router.post('/upload', upload.single('video'), async (req, res) => {
         await mergeChunks(fileName, totalChunks);
         console.log(`All chunks merged for ${fileName}`);
         
-        const filePath = path.join(uploadPath, fileName);
+        // Setup variables for storing upload status
         let uploadedToCloud = false;
         let videoUrl = '';
+        const baseURL = `http://${process.env.MINIO_ENDPOINT || 'lmsbackendminio-api.llp.trizenventures.com'}:${process.env.MINIO_PORT || 443}/${bucketName}/`;
         
-        // Check MinIO availability before attempting upload
+        // Only attempt cloud upload if MinIO is available
         if (minioAvailable) {
           try {
-            // Set a timeout for MinIO operations to prevent long delays
-            console.log(`Uploading ${filePath} to MinIO bucket ${bucketName}`);
+            console.log(`Uploading ${fileName} to MinIO bucket ${bucketName}`);
+            
+            // Read file buffer and upload with timeout
+            const filePath = path.join(uploadPath, fileName);
+            const fileBuffer = await fs.promises.readFile(filePath);
+            
+            // Set a timeout for MinIO operations
+            const UPLOAD_TIMEOUT = 30000; // 30 seconds
             
             // Try to upload with a timeout
             await Promise.race([
-              minioClient.fPutObject(bucketName, fileName, filePath),
+              minioClient.putObject(bucketName, fileName, fileBuffer),
               new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('MinIO upload timeout')), 10000)
+                setTimeout(() => reject(new Error('MinIO upload timeout')), UPLOAD_TIMEOUT)
               )
             ]);
             
-            console.log(`File ${fileName} uploaded to MinIO successfully`);
             uploadedToCloud = true;
+            console.log(`File ${fileName} uploaded to MinIO successfully`);
             
+            // Generate a presigned URL for the uploaded video
             try {
-              videoUrl = await minioClient.presignedGetObject(bucketName, fileName, 24 * 60 * 60);
+              videoUrl = await minioClient.presignedGetObject(bucketName, fileName, 24 * 60 * 60); // 24 hour expiry
               console.log('Generated presigned URL:', videoUrl);
             } catch (urlError) {
               console.error('Error generating presigned URL:', urlError);
-              videoUrl = `http://${process.env.MINIO_ENDPOINT || 'lmsbackendminio-api.llp.trizenventures.com'}:${process.env.MINIO_PORT || 443}/${bucketName}/${fileName}`;
+              videoUrl = `${baseURL}${fileName}`;
               console.log('Fallback URL:', videoUrl);
             }
           } catch (minioError) {
             console.error('Error uploading to MinIO:', minioError);
             uploadedToCloud = false;
           }
-        } else {
-          console.log('MinIO not available, using local storage');
         }
         
+        // If cloud upload failed, use local storage fallback
         if (!uploadedToCloud) {
-          // Use local storage fallback
           console.log('Using local storage fallback');
           videoUrl = `http://${req.get('host')}/uploads/${fileName}`;
           
-          // Send fallback response
           return res.status(200).json({
             message: 'File processed but cloud storage unavailable. Using local storage.',
             storageMode: 'local',
@@ -205,11 +198,27 @@ router.post('/upload', upload.single('video'), async (req, res) => {
               originalName: req.body.originalname,
               size: req.file.size,
               mimetype: req.file.mimetype,
-              baseURL: `http://${process.env.MINIO_ENDPOINT || 'lmsbackendminio-api.llp.trizenventures.com'}:${process.env.MINIO_PORT || 443}/${bucketName}/`,
+              baseURL: baseURL,
               videoUrl: videoUrl,
+              usingFallback: true
             }
           });
         }
+        
+        // Successful cloud upload response
+        return res.status(200).json({
+          message: 'File uploaded to cloud storage successfully',
+          storageMode: 'cloud',
+          file: {
+            filename: fileName,
+            originalName: req.body.originalname,
+            size: req.file.size,
+            mimetype: req.file.mimetype,
+            baseURL: baseURL,
+            videoUrl: videoUrl,
+            usingFallback: false
+          }
+        });
       } catch (mergeError) {
         console.error('Error merging chunks:', mergeError);
         return res.status(500).json({ 
@@ -217,41 +226,25 @@ router.post('/upload', upload.single('video'), async (req, res) => {
           details: mergeError.message 
         });
       }
+    } else {
+      // For intermediate chunks, return simple success response
+      const baseURL = `http://${process.env.MINIO_ENDPOINT || 'lmsbackendminio-api.llp.trizenventures.com'}:${process.env.MINIO_PORT || 443}/${bucketName}/`;
+      
+      res.status(200).json({
+        message: 'Chunk uploaded successfully',
+        file: {
+          filename: fileName,
+          originalName: req.body.originalname,
+          size: req.file.size,
+          mimetype: req.file.mimetype,
+          baseURL: baseURL,
+          videoUrl: ''
+        }
+      });
     }
-
-    // For successful uploads, return appropriate response
-    const baseURL = `http://${process.env.MINIO_ENDPOINT || 'lmsbackendminio-api.llp.trizenventures.com'}:${process.env.MINIO_PORT || 443}/${bucketName}/`;
-    let videoUrl = '';
-    
-    if (chunkNumber === totalChunks - 1) {
-      videoUrl = baseURL + fileName;
-    }
-
-    const fileInfo = {
-      filename: fileName,
-      originalName: req.body.originalname,
-      size: req.file.size,
-      mimetype: req.file.mimetype,
-      baseURL: baseURL,
-      videoUrl: videoUrl,
-      storageMode: minioAvailable ? 'cloud' : 'local'
-    };
-
-    console.log('Sending response for chunk:', chunkNumber, 'of', totalChunks);
-    
-    if (chunkNumber === totalChunks - 1) {
-      console.log('File info for final chunk:', fileInfo);
-    }
-
-    res.status(200).json({
-      message: 'Chunk uploaded successfully',
-      file: fileInfo,
-    });
   } catch (error) {
     console.error('Error during file upload:', error);
-    res
-      .status(500)
-      .json({ error: 'An error occurred while uploading the video.' });
+    res.status(500).json({ error: 'An error occurred while uploading the video.' });
   }
 });
 

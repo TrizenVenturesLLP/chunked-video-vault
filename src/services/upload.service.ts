@@ -54,15 +54,20 @@ export const uploadVideo = async (
         if (Math.floor(start / chunkSize) === chunks - 1) {
           const responseData = await response.json();
           console.log("Final chunk response:", responseData);
+          
           if (responseData.file && responseData.file.videoUrl) {
-            // Check if using local storage fallback
-            const isLocalStorage = responseData.message && 
-                responseData.message.includes('cloud storage unavailable') || 
-                responseData.storageMode === 'local';
-                
-            // Add storage mode info
-            responseData.file.storageMode = isLocalStorage ? 'local' : 'cloud';
-            responseData.file.usingFallback = isLocalStorage;
+            // Check storage mode
+            const isLocalStorage = responseData.storageMode === 'local' || 
+                                  responseData.message?.includes('local storage') ||
+                                  responseData.file.usingFallback;
+            
+            // Add storage mode info if not already present
+            if (!responseData.file.storageMode) {
+              responseData.file.storageMode = isLocalStorage ? 'local' : 'cloud';
+            }
+            if (responseData.file.usingFallback === undefined) {
+              responseData.file.usingFallback = isLocalStorage;
+            }
             
             onComplete(responseData.file);
             onProgress(100); // Ensure we show 100% when complete
