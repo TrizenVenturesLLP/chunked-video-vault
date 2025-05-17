@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { 
@@ -17,8 +16,10 @@ import {
   UserCheck,
   User,
   Menu,
-  X
+  X,
+  Video
 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -33,29 +34,35 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
 const InstructorLayout = () => {
+  const { logout, user } = useAuth();
   const { toast } = useToast(); 
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Mock user - in a real app this would come from auth context
-  const user = {
-    name: "Jane Smith",
-    email: "jane.smith@example.com"
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(part => part[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
   };
 
   const handleLogout = () => {
-    // Mock logout functionality
+    logout();
     toast({
       title: "Logged out",
       description: "You have been successfully logged out."
     });
-    navigate('/');
+    navigate('/login');
   };
 
   const navigation = [
     { name: 'Dashboard', href: '/instructor/dashboard', icon: BarChart2 },
     { name: 'Courses', href: '/instructor/courses', icon: BookOpen },
     { name: 'Students', href: '/instructor/students', icon: Users },
+    { name: 'Videos', href: '/instructor/videos', icon: Video },
     { name: 'Assessments', href: '/instructor/assessments', icon: Award },
     { name: 'Live Sessions', href: '/instructor/sessions', icon: BookOpenCheck },
     { name: 'Messages', href: '/instructor/messages', icon: MessageSquare },
@@ -74,16 +81,6 @@ const InstructorLayout = () => {
     { name: 'Student Certificates', href: '/instructor/certificates', icon: Award },
     { name: 'Student Attendance', href: '/instructor/attendance', icon: UserCheck },
   ];
-
-  // Get user initials for avatar
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(part => part[0])
-      .join('')
-      .toUpperCase()
-      .substring(0, 2);
-  };
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);

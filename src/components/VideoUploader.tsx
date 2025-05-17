@@ -177,9 +177,9 @@ const VideoUploader = ({ onUploadComplete }: VideoUploaderProps) => {
                 <span>Uploading...</span>
                 <span>{Math.round(uploadProgress)}%</span>
               </div>
-              <div className="h-2 bg-upload-bg rounded-full overflow-hidden">
+              <div className="h-2 bg-secondary rounded-full overflow-hidden">
                 <div 
-                  className="h-full bg-upload-progress transition-all duration-300"
+                  className="h-full bg-primary transition-all duration-300"
                   style={{ width: `${uploadProgress}%` }}
                 ></div>
               </div>

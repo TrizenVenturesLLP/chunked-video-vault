@@ -1,0 +1,115 @@
+
+import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
+import VideoUploader from '@/components/VideoUploader';
+import { UploadedFile } from '@/components/VideoUploader';
+import { toast } from 'sonner';
+
+const VideoUpload = () => {
+  const navigate = useNavigate();
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+
+  const handleUploadComplete = (fileInfo: UploadedFile) => {
+    setUploadedFiles(prev => [...prev, fileInfo]);
+    toast.success("Video uploaded successfully");
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center space-x-4">
+        <Button
+          variant="ghost"
+          onClick={() => navigate('/instructor/dashboard')}
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back to Dashboard
+        </Button>
+        <h1 className="text-3xl font-bold">Video Upload</h1>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div>
+          <VideoUploader onUploadComplete={handleUploadComplete} />
+        </div>
+        
+        <div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Recently Uploaded Videos</CardTitle>
+              <CardDescription>
+                Videos you've uploaded in this session
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {uploadedFiles.length > 0 ? (
+                <div className="space-y-4">
+                  {uploadedFiles.map((file, index) => (
+                    <div key={index} className="p-4 border rounded-lg">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-medium">{file.originalName}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            {(file.size / (1024 * 1024)).toFixed(2)}MB
+                          </p>
+                        </div>
+                        <span className="text-sm bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                          Uploaded
+                        </span>
+                      </div>
+                      <div className="mt-2">
+                        <p className="text-xs text-muted-foreground mb-1">Video URL:</p>
+                        <input 
+                          type="text" 
+                          value={file.videoUrl} 
+                          readOnly
+                          className="w-full text-xs p-2 border rounded bg-gray-50"
+                          onClick={(e) => {
+                            (e.target as HTMLInputElement).select();
+                            navigator.clipboard.writeText(file.videoUrl);
+                            toast.info("URL copied to clipboard");
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>No videos uploaded yet</p>
+                  <p className="text-sm">Videos you upload will appear here</p>
+                </div>
+              )}
+            </CardContent>
+            <CardFooter>
+              <p className="text-sm text-muted-foreground">
+                You can use these video URLs in your course content
+              </p>
+            </CardFooter>
+          </Card>
+        </div>
+      </div>
+
+      <div className="mt-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Video Upload Tips</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="list-disc list-inside space-y-2">
+              <li>Use MP4 format for best compatibility</li>
+              <li>Keep videos under 1GB for faster uploads</li>
+              <li>Recommended resolution: 720p or 1080p</li>
+              <li>Clear audio improves student engagement</li>
+              <li>Add descriptive filenames to stay organized</li>
+            </ul>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+export default VideoUpload;
