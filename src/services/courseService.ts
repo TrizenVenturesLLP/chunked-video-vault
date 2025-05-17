@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from '@/lib/axios';
 
@@ -36,10 +37,15 @@ export interface Course {
   skills: string[];
   roadmap: RoadmapDay[];
   instructor: string;
+  instructorId?: string;
   students?: number;
   rating?: number;
   createdAt?: string;
   updatedAt?: string;
+  modules?: string[];
+  reviews?: any[];
+  courses?: any[];
+  testimonials?: any[];
 }
 
 // Student types
@@ -61,7 +67,42 @@ export interface CourseStudents {
   students: Student[];
 }
 
-// Mock data for courses
+// API hooks
+export const useInstructorCourses = () => {
+  return useQuery({
+    queryKey: ['instructor-courses'],
+    queryFn: async () => {
+      try {
+        const response = await axios.get('/api/instructor/courses');
+        return response.data;
+      } catch (error) {
+        console.error('Failed to fetch instructor courses:', error);
+        // Return mock data as fallback if API fails
+        return mockCourses;
+      }
+    }
+  });
+};
+
+export const useCourseDetails = (courseId?: string) => {
+  return useQuery({
+    queryKey: ['course', courseId],
+    queryFn: async () => {
+      if (!courseId) return null;
+      try {
+        const response = await axios.get(`/api/courses/${courseId}`);
+        return response.data;
+      } catch (error) {
+        console.error(`Failed to fetch course ${courseId}:`, error);
+        // Return mock course as fallback if API fails
+        return mockCourses.find(course => course._id === courseId) || null;
+      }
+    },
+    enabled: !!courseId
+  });
+};
+
+// Mock data for courses as fallback
 const mockCourses: Course[] = [
   {
     _id: '1',
@@ -164,31 +205,7 @@ const mockStudents: Record<string, Student[]> = {
   ]
 };
 
-// API hooks
-export const useInstructorCourses = () => {
-  return useQuery({
-    queryKey: ['instructor-courses'],
-    queryFn: async () => {
-      // In a real app, this would be an API call
-      // return await axios.get('/api/instructor/courses');
-      return mockCourses;
-    }
-  });
-};
-
-export const useCourseDetails = (courseId?: string) => {
-  return useQuery({
-    queryKey: ['course', courseId],
-    queryFn: async () => {
-      if (!courseId) return null;
-      // In a real app, this would be an API call
-      // return await axios.get(`/api/courses/${courseId}`);
-      return mockCourses.find(course => course._id === courseId) || null;
-    },
-    enabled: !!courseId
-  });
-};
-
+// Course students hooks
 export const useCourseStudents = (courseId?: string) => {
   return useQuery({
     queryKey: ['course-students', courseId],
@@ -233,18 +250,13 @@ export const useCreateCourse = () => {
   
   return useMutation({
     mutationFn: async (courseData: Partial<Course>) => {
-      // In a real app, this would be an API call
-      // return await axios.post('/api/courses', courseData);
-      
-      // Mock implementation
-      const newCourse = {
-        ...courseData,
-        _id: Math.random().toString(36).substring(2, 15),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-      
-      return newCourse;
+      try {
+        const response = await axios.post('/api/courses', courseData);
+        return response.data.course;
+      } catch (error) {
+        console.error('Failed to create course:', error);
+        throw new Error('Failed to create course. Please try again.');
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['instructor-courses'] });
@@ -257,17 +269,13 @@ export const useUpdateCourse = () => {
   
   return useMutation({
     mutationFn: async ({ courseId, courseData }: { courseId: string, courseData: Partial<Course> }) => {
-      // In a real app, this would be an API call
-      // return await axios.put(`/api/courses/${courseId}`, courseData);
-      
-      // Mock implementation
-      const updatedCourse = {
-        ...mockCourses.find(course => course._id === courseId),
-        ...courseData,
-        updatedAt: new Date().toISOString()
-      };
-      
-      return updatedCourse;
+      try {
+        const response = await axios.put(`/api/courses/${courseId}`, courseData);
+        return response.data.course;
+      } catch (error) {
+        console.error('Failed to update course:', error);
+        throw new Error('Failed to update course. Please try again.');
+      }
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['instructor-courses'] });
@@ -281,11 +289,13 @@ export const useDeleteCourse = () => {
   
   return useMutation({
     mutationFn: async (courseId: string) => {
-      // In a real app, this would be an API call
-      // return await axios.delete(`/api/courses/${courseId}`);
-      
-      // Mock implementation
-      return { success: true };
+      try {
+        await axios.delete(`/api/courses/${courseId}`);
+        return { success: true };
+      } catch (error) {
+        console.error('Failed to delete course:', error);
+        throw new Error('Failed to delete course. Please try again.');
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['instructor-courses'] });
