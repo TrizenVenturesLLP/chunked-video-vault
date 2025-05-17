@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { 
@@ -17,7 +18,8 @@ import {
   User,
   Menu,
   X,
-  Video
+  Video,
+  LifeBuoy
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -72,7 +74,7 @@ const InstructorLayout = () => {
     { name: 'Instructor Guidelines', href: '/instructor/guidelines', icon: BookMarked },
     { name: 'Teaching Resources', href: '/instructor/teaching-resources', icon: GraduationCap },
     { name: 'FAQ', href: '/instructor/faq', icon: HelpCircle },
-    { name: 'Support', href: '/instructor/support', icon: FileQuestion },
+    { name: 'Support', href: '/instructor/support', icon: LifeBuoy },
   ];
 
   const studentContentPages = [
