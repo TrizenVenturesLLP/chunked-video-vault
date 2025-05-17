@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from '@/lib/axios';
 
@@ -63,7 +62,7 @@ export interface CourseStudents {
 }
 
 // Mock data for courses
-const mockCourses = [
+const mockCourses: Course[] = [
   {
     _id: '1',
     title: 'Web Development Fundamentals',
