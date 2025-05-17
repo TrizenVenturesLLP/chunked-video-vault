@@ -18,11 +18,11 @@ await fs.mkdir(uploadPathChunks, { recursive: true });
 
 // Setup MinIO client with better error handling
 const minioClient = new Client({
-  endPoint: process.env.MINIO_ENDPOINT || 'localhost',
-  port: parseInt(process.env.MINIO_PORT) || 9000,
+  endPoint: process.env.MINIO_ENDPOINT || 'lmsbackendminio-api.llp.trizenventures.com',
+  port: parseInt(process.env.MINIO_PORT) || 443,
   useSSL: process.env.MINIO_USE_SSL === 'true',
-  accessKey: process.env.MINIO_ACCESS_KEY || 'minioadmin',
-  secretKey: process.env.MINIO_SECRET_KEY || 'minioadmin'
+  accessKey: process.env.MINIO_ACCESS_KEY || 'b72084650d4c21dd04b801f0',
+  secretKey: process.env.MINIO_SECRET_KEY || 'be2339a15ee0544de0796942ba3a85224cc635'
 });
 
 // Ensure the bucket exists
