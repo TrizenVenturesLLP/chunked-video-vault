@@ -112,127 +112,129 @@ const VideoUploader = ({ onUploadComplete }: VideoUploaderProps) => {
   };
   
   return (
-    <Card className="w-full max-w-xl">
-      <CardHeader>
-        <CardTitle className="text-2xl">Upload Video</CardTitle>
-        <CardDescription>Upload and store your videos securely</CardDescription>
-      </CardHeader>
-      
-      <CardContent>
-        <div className="space-y-6">
-          <div
-            className={cn(
-              "border-2 border-dashed rounded-lg p-8 transition-colors text-center",
-              dragActive ? "border-primary bg-primary/5" : "border-border",
-              isUploading && "opacity-50 pointer-events-none"
-            )}
-            onDragEnter={handleDrag}
-            onDragOver={handleDrag}
-            onDragLeave={handleDrag}
-            onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileSelect}
-              accept="video/*"
-              className="hidden"
-            />
+    <div className="w-full max-w-xl">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl">Upload Video</CardTitle>
+          <CardDescription>Upload and store your videos securely</CardDescription>
+        </CardHeader>
+        
+        <CardContent>
+          <div className="space-y-6">
+            <div
+              className={cn(
+                "border-2 border-dashed rounded-lg p-8 transition-colors text-center",
+                dragActive ? "border-primary bg-primary/5" : "border-border",
+                isUploading && "opacity-50 pointer-events-none"
+              )}
+              onDragEnter={handleDrag}
+              onDragOver={handleDrag}
+              onDragLeave={handleDrag}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileSelect}
+                accept="video/*"
+                className="hidden"
+              />
+              
+              <div className="flex flex-col items-center justify-center space-y-4 cursor-pointer">
+                <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Upload className="h-6 w-6 text-primary" />
+                </div>
+                <div className="space-y-2">
+                  <p className="font-medium">
+                    {selectedFile ? 'Change video file' : 'Upload a video file'}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Drag and drop or click to upload (max 1000MB)
+                  </p>
+                </div>
+              </div>
+            </div>
             
-            <div className="flex flex-col items-center justify-center space-y-4 cursor-pointer">
-              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                <Upload className="h-6 w-6 text-primary" />
+            {selectedFile && !uploadedFile && (
+              <div className="flex items-center p-3 bg-secondary/50 rounded-md">
+                <FileVideo className="h-8 w-8 mr-4 flex-shrink-0 text-primary" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">
+                    {selectedFile.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatFileSize(selectedFile.size)}
+                  </p>
+                </div>
               </div>
-              <div className="space-y-2">
-                <p className="font-medium">
-                  {selectedFile ? 'Change video file' : 'Upload a video file'}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Drag and drop or click to upload (max 1000MB)
-                </p>
-              </div>
-            </div>
-          </div>
-          
-          {selectedFile && !uploadedFile && (
-            <div className="flex items-center p-3 bg-secondary/50 rounded-md">
-              <FileVideo className="h-8 w-8 mr-4 flex-shrink-0 text-primary" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">
-                  {selectedFile.name}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {formatFileSize(selectedFile.size)}
-                </p>
-              </div>
-            </div>
-          )}
-          
-          {isUploading && (
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>Uploading...</span>
-                <span>{Math.round(uploadProgress)}%</span>
-              </div>
-              <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-primary transition-all duration-300"
-                  style={{ width: `${uploadProgress}%` }}
-                ></div>
-              </div>
-            </div>
-          )}
-          
-          {uploadedFile && (
-            <div className="flex items-center bg-green-50 dark:bg-green-900/20 p-3 rounded-md">
-              <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-500 mr-4" />
-              <div>
-                <p className="font-medium">Upload Complete</p>
-                <p className="text-sm text-muted-foreground truncate">
-                  {uploadedFile.originalName}
-                </p>
-              </div>
-            </div>
-          )}
-          
-          <Button 
-            type="button"
-            onClick={handleUpload}
-            disabled={!selectedFile || isUploading || !!uploadedFile} 
-            className="w-full"
-          >
-            {isUploading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Uploading
-              </>
-            ) : (
-              <>
-                <Upload className="mr-2 h-4 w-4" />
-                {uploadedFile ? 'Uploaded' : 'Upload Video'}
-              </>
             )}
-          </Button>
-        </div>
-      </CardContent>
-      
-      {uploadedFile && (
-        <CardFooter className="flex flex-col items-start">
-          <p className="text-sm text-muted-foreground mb-2">
-            Your video is now available at:
-          </p>
-          <a 
-            href={uploadedFile.videoUrl} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="text-sm text-primary underline break-all"
-          >
-            {uploadedFile.videoUrl}
-          </a>
-        </CardFooter>
-      )}
-    </Card>
+            
+            {isUploading && (
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>Uploading...</span>
+                  <span>{Math.round(uploadProgress)}%</span>
+                </div>
+                <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-primary transition-all duration-300"
+                    style={{ width: `${uploadProgress}%` }}
+                  ></div>
+                </div>
+              </div>
+            )}
+            
+            {uploadedFile && (
+              <div className="flex items-center bg-green-50 dark:bg-green-900/20 p-3 rounded-md">
+                <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-500 mr-4" />
+                <div>
+                  <p className="font-medium">Upload Complete</p>
+                  <p className="text-sm text-muted-foreground truncate">
+                    {uploadedFile.originalName}
+                  </p>
+                </div>
+              </div>
+            )}
+            
+            <Button 
+              type="button"
+              onClick={handleUpload}
+              disabled={!selectedFile || isUploading || !!uploadedFile} 
+              className="w-full"
+            >
+              {isUploading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Uploading
+                </>
+              ) : (
+                <>
+                  <Upload className="mr-2 h-4 w-4" />
+                  {uploadedFile ? 'Uploaded' : 'Upload Video'}
+                </>
+              )}
+            </Button>
+          </div>
+        </CardContent>
+        
+        {uploadedFile && (
+          <CardFooter className="flex flex-col items-start">
+            <p className="text-sm text-muted-foreground mb-2">
+              Your video is now available at:
+            </p>
+            <a 
+              href={uploadedFile.videoUrl} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-sm text-primary underline break-all"
+            >
+              {uploadedFile.videoUrl}
+            </a>
+          </CardFooter>
+        )}
+      </Card>
+    </div>
   );
 };
 

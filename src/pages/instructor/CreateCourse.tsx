@@ -85,6 +85,14 @@ const CreateCourse = () => {
     }
   }, [user, form]);
 
+  // Keep the roadmap state in sync with form state
+  useEffect(() => {
+    const currentRoadmap = form.getValues().roadmap;
+    if (currentRoadmap) {
+      setRoadmapDays(currentRoadmap);
+    }
+  }, [form]);
+
   const handleTabChange = (value: string) => {
     setActiveTab(value);
   };
@@ -107,13 +115,6 @@ const CreateCourse = () => {
   };
   
   const handleAddDay = () => {
-    setRoadmapDays([...roadmapDays, { 
-      day: roadmapDays.length + 1, 
-      topics: "", 
-      video: "", 
-      mcqs: [] 
-    }]);
-    
     const updatedRoadmap = [...form.getValues().roadmap];
     updatedRoadmap.push({ 
       day: updatedRoadmap.length + 1, 
@@ -122,6 +123,7 @@ const CreateCourse = () => {
       mcqs: [] 
     });
     form.setValue('roadmap', updatedRoadmap);
+    setRoadmapDays(updatedRoadmap);
   };
   
   const handleVideoUpload = (fileInfo: UploadedFile, dayIndex: number) => {
@@ -147,6 +149,15 @@ const CreateCourse = () => {
       updatedRoadmap[dayIndex].topics = event.target.value;
     }
     form.setValue('roadmap', updatedRoadmap);
+    
+    // Update the local state to ensure the UI reflects the changes
+    const newRoadmapDays = [...roadmapDays];
+    if (!newRoadmapDays[dayIndex]) {
+      newRoadmapDays[dayIndex] = { day: dayIndex + 1, topics: event.target.value, video: "", mcqs: [] };
+    } else {
+      newRoadmapDays[dayIndex].topics = event.target.value;
+    }
+    setRoadmapDays(newRoadmapDays);
   };
   
   const handleAddQuestion = (dayIndex: number) => {
@@ -179,6 +190,7 @@ const CreateCourse = () => {
     }
     
     form.setValue('roadmap', updatedRoadmap);
+    setRoadmapDays(updatedRoadmap);
   };
   
   const onSubmit = (data: CourseFormData) => {
@@ -410,8 +422,9 @@ const CreateCourse = () => {
                             <Label className="mb-2 block">Topics *</Label>
                             <Textarea 
                               placeholder="Topics covered on this day"
-                              value={form.getValues().roadmap[index]?.topics || ""}
+                              value={roadmapDays[index]?.topics || ""}
                               onChange={(e) => handleTopicChange(e, index)}
+                              className="w-full"
                             />
                           </div>
                           

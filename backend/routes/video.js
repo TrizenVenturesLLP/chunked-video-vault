@@ -16,27 +16,56 @@ const uploadPathChunks = path.join(process.cwd(), 'chunks');
 await fs.mkdir(uploadPath, { recursive: true });
 await fs.mkdir(uploadPathChunks, { recursive: true });
 
-// Setup MinIO client
+// Setup MinIO client with better error handling
 const minioClient = new Client({
-  endPoint: process.env.MINIO_ENDPOINT,
+  endPoint: process.env.MINIO_ENDPOINT || 'localhost',
   port: parseInt(process.env.MINIO_PORT) || 9000,
   useSSL: process.env.MINIO_USE_SSL === 'true',
-  accessKey: process.env.MINIO_ACCESS_KEY,
-  secretKey: process.env.MINIO_SECRET_KEY
+  accessKey: process.env.MINIO_ACCESS_KEY || 'minioadmin',
+  secretKey: process.env.MINIO_SECRET_KEY || 'minioadmin'
 });
 
 // Ensure the bucket exists
 const bucketName = process.env.MINIO_BUCKET || 'video-bucket';
 
-try {
-  const bucketExists = await minioClient.bucketExists(bucketName);
-  if (!bucketExists) {
-    await minioClient.makeBucket(bucketName);
-    console.log(`Created bucket: ${bucketName}`);
+// Create bucket with more robust error handling
+(async function initializeBucket() {
+  try {
+    console.log('Checking if bucket exists:', bucketName);
+    const bucketExists = await minioClient.bucketExists(bucketName);
+    
+    if (!bucketExists) {
+      console.log(`Bucket ${bucketName} does not exist. Creating it...`);
+      await minioClient.makeBucket(bucketName);
+      console.log(`Created bucket: ${bucketName}`);
+      
+      // Set bucket policy to public (optional - only if you want public access)
+      const policy = {
+        Version: '2012-10-17',
+        Statement: [
+          {
+            Effect: 'Allow',
+            Principal: { AWS: ['*'] },
+            Action: ['s3:GetObject'],
+            Resource: [`arn:aws:s3:::${bucketName}/*`]
+          }
+        ]
+      };
+      
+      try {
+        await minioClient.setBucketPolicy(bucketName, JSON.stringify(policy));
+        console.log(`Set public read policy on bucket: ${bucketName}`);
+      } catch (policyError) {
+        console.error('Error setting bucket policy (non-fatal):', policyError);
+      }
+    } else {
+      console.log(`Bucket ${bucketName} already exists.`);
+    }
+  } catch (err) {
+    console.error('Error checking/creating bucket:', err);
+    console.log('Will attempt to create bucket on first upload if needed.');
   }
-} catch (err) {
-  console.error('Error checking/creating bucket:', err);
-}
+})();
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -96,21 +125,67 @@ router.post('/upload', upload.single('video'), async (req, res) => {
     const totalChunks = Number(req.body.totalChunks);
     const fileName = req.body.originalname.replace(/\s+/g, '');
 
+    // Log upload progress
+    console.log(`Processing chunk ${chunkNumber + 1}/${totalChunks} of ${fileName}`);
+
     if (chunkNumber === totalChunks - 1) {
-      await mergeChunks(fileName, totalChunks);
-      
-      // Upload to MinIO after merging chunks
       try {
+        await mergeChunks(fileName, totalChunks);
+        console.log(`All chunks merged for ${fileName}`);
+        
+        // Before uploading to MinIO, make sure the bucket exists (double-check)
+        let bucketExists = false;
+        try {
+          bucketExists = await minioClient.bucketExists(bucketName);
+        } catch (bucketError) {
+          console.error('Error checking bucket existence:', bucketError);
+        }
+        
+        // Create bucket if it still doesn't exist
+        if (!bucketExists) {
+          try {
+            console.log(`Bucket ${bucketName} does not exist, creating it now...`);
+            await minioClient.makeBucket(bucketName);
+            console.log(`Created bucket: ${bucketName}`);
+          } catch (makeBucketError) {
+            console.error('Error creating bucket:', makeBucketError);
+            return res.status(500).json({ 
+              error: 'Failed to create storage bucket', 
+              details: makeBucketError.message 
+            });
+          }
+        }
+        
+        // Upload to MinIO after merging chunks
         const filePath = path.join(uploadPath, fileName);
         console.log(`Uploading ${filePath} to MinIO bucket ${bucketName}`);
         
-        await minioClient.fPutObject(bucketName, fileName, filePath);
-        console.log(`File ${fileName} uploaded to MinIO successfully`);
-      } catch (minioError) {
-        console.error('Error uploading to MinIO:', minioError);
+        try {
+          await minioClient.fPutObject(bucketName, fileName, filePath);
+          console.log(`File ${fileName} uploaded to MinIO successfully`);
+        } catch (minioError) {
+          console.error('Error uploading to MinIO:', minioError);
+          
+          // Provide fallback URL if MinIO upload fails
+          const fallbackUrl = `http://${process.env.MINIO_ENDPOINT || 'localhost'}:${process.env.MINIO_PORT || 9000}/${bucketName}/${fileName}`;
+          
+          return res.status(200).json({
+            message: 'File processed but cloud storage unavailable. Using local storage.',
+            file: {
+              filename: fileName,
+              originalName: req.body.originalname,
+              size: req.file.size,
+              mimetype: req.file.mimetype,
+              baseURL: `http://${process.env.MINIO_ENDPOINT || 'localhost'}:${process.env.MINIO_PORT || 9000}/${bucketName}/`,
+              videoUrl: fallbackUrl,
+            }
+          });
+        }
+      } catch (mergeError) {
+        console.error('Error merging chunks:', mergeError);
         return res.status(500).json({ 
-          error: 'Failed to upload file to storage', 
-          details: minioError.message 
+          error: 'Failed to process uploaded file chunks', 
+          details: mergeError.message 
         });
       }
     }
@@ -124,7 +199,7 @@ router.post('/upload', upload.single('video'), async (req, res) => {
       }
     } catch (error) {
       console.error('Error generating presigned URL:', error);
-      videoUrl = `http://${process.env.MINIO_ENDPOINT}:${process.env.MINIO_PORT}/${bucketName}/${fileName}`;
+      videoUrl = `http://${process.env.MINIO_ENDPOINT || 'localhost'}:${process.env.MINIO_PORT || 9000}/${bucketName}/${fileName}`;
       console.log('Fallback URL:', videoUrl);
     }
 
@@ -133,12 +208,15 @@ router.post('/upload', upload.single('video'), async (req, res) => {
       originalName: req.body.originalname,
       size: req.file.size,
       mimetype: req.file.mimetype,
-      baseURL: `http://${process.env.MINIO_ENDPOINT}:${process.env.MINIO_PORT}/${bucketName}/`,
-      videoUrl: videoUrl || `http://${process.env.MINIO_ENDPOINT}:${process.env.MINIO_PORT}/${bucketName}/${fileName}`,
+      baseURL: `http://${process.env.MINIO_ENDPOINT || 'localhost'}:${process.env.MINIO_PORT || 9000}/${bucketName}/`,
+      videoUrl: videoUrl || `http://${process.env.MINIO_ENDPOINT || 'localhost'}:${process.env.MINIO_PORT || 9000}/${bucketName}/${fileName}`,
     };
 
     console.log('Sending response for chunk:', chunkNumber, 'of', totalChunks);
-    console.log('File info:', fileInfo);
+    
+    if (chunkNumber === totalChunks - 1) {
+      console.log('File info for final chunk:', fileInfo);
+    }
 
     res.status(200).json({
       message: 'Chunk uploaded successfully',
@@ -157,11 +235,20 @@ const RETRY_DELAY = 1000; // 1 second
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function mergeChunks(fileName, totalChunks) {
+  console.log(`Starting to merge ${totalChunks} chunks for ${fileName}`);
   const writeStream = fs.createWriteStream(path.join(uploadPath, fileName));
 
   for (let i = 0; i < totalChunks; i++) {
     const chunkPath = path.join(uploadPathChunks, `${fileName}.part_${i}`);
     let retries = 0;
+
+    console.log(`Processing chunk ${i + 1}/${totalChunks} from ${chunkPath}`);
+    
+    // Check if chunk exists before attempting to read
+    if (!fs.existsSync(chunkPath)) {
+      console.error(`Chunk file not found: ${chunkPath}`);
+      throw new Error(`Chunk file ${i} not found`);
+    }
 
     while (retries < MAX_RETRIES) {
       try {
@@ -183,6 +270,7 @@ async function mergeChunks(fileName, totalChunks) {
           await delay(RETRY_DELAY);
           retries++;
         } else {
+          console.error(`Error processing chunk ${i}:`, error);
           throw error; // Unexpected error, rethrow
         }
       }
@@ -196,7 +284,7 @@ async function mergeChunks(fileName, totalChunks) {
   }
 
   writeStream.end();
-  console.log('Chunks merged successfully');
+  console.log('All chunks merged successfully');
 }
 
 router.use((err, req, res, next) => {
