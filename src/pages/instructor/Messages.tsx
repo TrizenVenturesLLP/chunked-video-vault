@@ -22,7 +22,7 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import { useInstructorDiscussions, useAddReply, useCreateDiscussion, useDeleteDiscussion } from '@/services/discussionService';
 import { useInstructorCourses } from '@/services/courseService';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import {
   Select,
   SelectContent,
@@ -71,6 +71,9 @@ const Messages = () => {
   const createDiscussionMutation = useCreateDiscussion();
   const deleteDiscussionMutation = useDeleteDiscussion();
   const sendMessageMutation = useSendMessage();
+
+  // Get the current user ID (from user object or default to 'instructor1')
+  const currentUserId = user?.id || 'instructor1'; 
 
   const handleSendMessage = () => {
     if (!newMessage.trim() || !selectedDiscussion) return;
@@ -465,7 +468,7 @@ const Messages = () => {
                           Instructor Post
                         </Badge>
                       )}
-                      {selectedDiscussion.userId._id === user?._id && (
+                      {selectedDiscussion.userId._id === currentUserId && (
                         <Button
                           variant="destructive"
                           size="sm"
@@ -593,7 +596,7 @@ const Messages = () => {
                                   <span className="text-sm text-muted-foreground">
                                     {formatDistanceToNow(new Date(discussion.createdAt), { addSuffix: true })}
                                   </span>
-                                  {discussion.userId._id === user?._id && (
+                                  {discussion.userId._id === currentUserId && (
                                     <Button
                                       variant="destructive"
                                       size="sm"
@@ -749,13 +752,13 @@ const Messages = () => {
                               key={message._id}
                               className={cn(
                                 "flex",
-                                message.senderId.id === user?.id ? "justify-end" : "justify-start"
+                                message.senderId.id === currentUserId ? "justify-end" : "justify-start"
                               )}
                             >
                               <div
                                 className={cn(
                                   "max-w-[85%] sm:max-w-[70%] rounded-lg p-3 sm:p-4",
-                                  message.senderId.id === user?.id
+                                  message.senderId.id === currentUserId
                                     ? "bg-primary text-primary-foreground"
                                     : "bg-muted"
                                 )}
