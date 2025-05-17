@@ -1,8 +1,8 @@
 
-import { useState, useRef, ChangeEvent, FormEvent } from "react";
+import { useState, useRef, ChangeEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, FileVideo, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { Upload, FileVideo, CheckCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { uploadVideo, validateVideoFile } from "@/services/upload.service";
 import { cn } from "@/lib/utils";
@@ -44,9 +44,7 @@ const VideoUploader = ({ onUploadComplete }: VideoUploaderProps) => {
     }
   };
   
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    
+  const handleUpload = async () => {
     if (!selectedFile) {
       toast.error("Please select a video file");
       return;
@@ -121,7 +119,7 @@ const VideoUploader = ({ onUploadComplete }: VideoUploaderProps) => {
       </CardHeader>
       
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="space-y-6">
           <div
             className={cn(
               "border-2 border-dashed rounded-lg p-8 transition-colors text-center",
@@ -199,7 +197,8 @@ const VideoUploader = ({ onUploadComplete }: VideoUploaderProps) => {
           )}
           
           <Button 
-            type="submit" 
+            type="button"
+            onClick={handleUpload}
             disabled={!selectedFile || isUploading || !!uploadedFile} 
             className="w-full"
           >
@@ -215,7 +214,7 @@ const VideoUploader = ({ onUploadComplete }: VideoUploaderProps) => {
               </>
             )}
           </Button>
-        </form>
+        </div>
       </CardContent>
       
       {uploadedFile && (

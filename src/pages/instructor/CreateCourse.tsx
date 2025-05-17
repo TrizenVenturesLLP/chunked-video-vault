@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,7 @@ import VideoUploader from '@/components/VideoUploader';
 import { UploadedFile } from '@/components/VideoUploader';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { AuthContext } from '@/contexts/AuthContext';
 
 const TABS = [
   { id: "basic-info", label: "Basic Information" },
@@ -58,6 +59,7 @@ const CreateCourse = () => {
   const [activeTab, setActiveTab] = useState<string>("basic-info");
   const [roadmapDays, setRoadmapDays] = useState<any[]>([{ day: 1, topics: "", video: "", mcqs: [] }]);
   const [uploadedFile, setUploadedFile] = useState<UploadedFile | null>(null);
+  const { user } = useContext(AuthContext);
   
   const { mutate: createCourse, isPending } = useCreateCourse();
   
@@ -66,7 +68,7 @@ const CreateCourse = () => {
       title: "",
       description: "",
       longDescription: "",
-      instructor: "John Doe", // This would normally come from the logged-in user
+      instructor: user?.name || "", // Set instructor name from logged in user
       duration: "",
       category: "",
       level: "Beginner",
@@ -76,6 +78,13 @@ const CreateCourse = () => {
       courseAccess: true,
     },
   });
+
+  // Update instructor name when user data is available
+  useEffect(() => {
+    if (user?.name) {
+      form.setValue('instructor', user.name);
+    }
+  }, [user, form]);
 
   const handleTabChange = (value: string) => {
     setActiveTab(value);
@@ -105,6 +114,15 @@ const CreateCourse = () => {
       video: "", 
       mcqs: [] 
     }]);
+    
+    const updatedRoadmap = [...form.getValues().roadmap];
+    updatedRoadmap.push({ 
+      day: updatedRoadmap.length + 1, 
+      topics: "", 
+      video: "", 
+      mcqs: [] 
+    });
+    form.setValue('roadmap', updatedRoadmap);
   };
   
   const handleVideoUpload = (fileInfo: UploadedFile, dayIndex: number) => {
@@ -120,6 +138,16 @@ const CreateCourse = () => {
     
     form.setValue('roadmap', updatedRoadmap);
     toast.success(`Video uploaded for Day ${dayIndex + 1}`);
+  };
+  
+  const handleTopicChange = (event: React.ChangeEvent<HTMLTextAreaElement>, dayIndex: number) => {
+    const updatedRoadmap = [...form.getValues().roadmap];
+    if (!updatedRoadmap[dayIndex]) {
+      updatedRoadmap[dayIndex] = { day: dayIndex + 1, topics: event.target.value, video: "", mcqs: [] };
+    } else {
+      updatedRoadmap[dayIndex].topics = event.target.value;
+    }
+    form.setValue('roadmap', updatedRoadmap);
   };
   
   const handleAddQuestion = (dayIndex: number) => {
@@ -251,7 +279,7 @@ const CreateCourse = () => {
                       <FormItem>
                         <FormLabel>Instructor Name *</FormLabel>
                         <FormControl>
-                          <Input placeholder="Your name" {...field} />
+                          <Input placeholder="Your name" {...field} readOnly disabled className="bg-gray-100" />
                         </FormControl>
                       </FormItem>
                     )}
@@ -383,16 +411,8 @@ const CreateCourse = () => {
                             <Label className="mb-2 block">Topics *</Label>
                             <Textarea 
                               placeholder="Topics covered on this day"
-                              value={day.topics}
-                              onChange={(e) => {
-                                const updatedRoadmap = [...form.getValues().roadmap];
-                                if (!updatedRoadmap[index]) {
-                                  updatedRoadmap[index] = { day: index + 1, topics: e.target.value, video: "", mcqs: [] };
-                                } else {
-                                  updatedRoadmap[index].topics = e.target.value;
-                                }
-                                form.setValue('roadmap', updatedRoadmap);
-                              }}
+                              value={form.getValues().roadmap[index]?.topics || ""}
+                              onChange={(e) => handleTopicChange(e, index)}
                             />
                           </div>
                           
@@ -439,10 +459,10 @@ const CreateCourse = () => {
                               </Button>
                             </div>
                             
-                            {day.mcqs && day.mcqs.length > 0 ? (
+                            {form.getValues().roadmap[index]?.mcqs && form.getValues().roadmap[index]?.mcqs.length > 0 ? (
                               <div className="space-y-4">
                                 {/* Question editing UI would go here */}
-                                <p>Questions available: {day.mcqs.length}</p>
+                                <p>Questions available: {form.getValues().roadmap[index]?.mcqs.length}</p>
                               </div>
                             ) : (
                               <div className="text-center py-6 border border-dashed rounded-md">
