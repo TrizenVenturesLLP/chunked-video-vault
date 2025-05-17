@@ -43,6 +43,25 @@ export interface Course {
   updatedAt?: string;
 }
 
+// Student types
+export interface Student {
+  id: string;
+  name: string;
+  email: string;
+  status: string;
+  progress: number;
+  enrolledDate: string;
+  lastActive: string;
+  courseTitle?: string;
+}
+
+export interface CourseStudents {
+  id: string;
+  _id: string;
+  title: string;
+  students: Student[];
+}
+
 // Mock data for courses
 const mockCourses = [
   {
@@ -93,6 +112,59 @@ const mockCourses = [
   }
 ];
 
+// Mock data for students
+const mockStudents: Record<string, Student[]> = {
+  '1': [
+    {
+      id: '101',
+      name: 'Alice Johnson',
+      email: 'alice@example.com',
+      status: 'completed',
+      progress: 100,
+      enrolledDate: '2023-01-15',
+      lastActive: '3 days ago'
+    },
+    {
+      id: '102',
+      name: 'Bob Smith',
+      email: 'bob@example.com',
+      status: 'started',
+      progress: 45,
+      enrolledDate: '2023-02-10',
+      lastActive: 'Today'
+    },
+    {
+      id: '103',
+      name: 'Charlie Davis',
+      email: 'charlie@example.com',
+      status: 'enrolled',
+      progress: 0,
+      enrolledDate: '2023-03-05',
+      lastActive: '1 week ago'
+    }
+  ],
+  '2': [
+    {
+      id: '201',
+      name: 'Diana Evans',
+      email: 'diana@example.com',
+      status: 'started',
+      progress: 75,
+      enrolledDate: '2023-01-20',
+      lastActive: 'Yesterday'
+    },
+    {
+      id: '202',
+      name: 'Edward Wilson',
+      email: 'edward@example.com',
+      status: 'started',
+      progress: 30,
+      enrolledDate: '2023-02-15',
+      lastActive: '2 days ago'
+    }
+  ]
+};
+
 // API hooks
 export const useInstructorCourses = () => {
   return useQuery({
@@ -115,6 +187,45 @@ export const useCourseDetails = (courseId?: string) => {
       return mockCourses.find(course => course._id === courseId) || null;
     },
     enabled: !!courseId
+  });
+};
+
+export const useCourseStudents = (courseId?: string) => {
+  return useQuery({
+    queryKey: ['course-students', courseId],
+    queryFn: async () => {
+      if (!courseId) return null;
+      // In a real app, this would be an API call
+      // return await axios.get(`/api/courses/${courseId}/students`);
+      
+      const course = mockCourses.find(c => c._id === courseId);
+      if (!course) throw new Error('Course not found');
+      
+      return {
+        id: course._id,
+        _id: course._id,
+        title: course.title,
+        students: mockStudents[course._id] || []
+      };
+    },
+    enabled: !!courseId
+  });
+};
+
+export const useAllCourseStudents = () => {
+  return useQuery({
+    queryKey: ['all-students'],
+    queryFn: async () => {
+      // In a real app, this would be an API call
+      // return await axios.get('/api/instructor/students');
+      
+      return mockCourses.map(course => ({
+        id: course._id,
+        _id: course._id,
+        title: course.title,
+        students: mockStudents[course._id] || []
+      }));
+    }
   });
 };
 
