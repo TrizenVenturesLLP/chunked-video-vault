@@ -112,10 +112,10 @@ const VideoUploader = ({ onUploadComplete }: VideoUploaderProps) => {
   };
   
   return (
-    <div className="w-full max-w-xl">
+    <div className="w-full">
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">Upload Video</CardTitle>
+          <CardTitle className="text-lg">Upload Video</CardTitle>
           <CardDescription>Upload and store your videos securely</CardDescription>
         </CardHeader>
         
@@ -123,7 +123,7 @@ const VideoUploader = ({ onUploadComplete }: VideoUploaderProps) => {
           <div className="space-y-6">
             <div
               className={cn(
-                "border-2 border-dashed rounded-lg p-8 transition-colors text-center",
+                "border-2 border-dashed rounded-lg p-4 transition-colors text-center",
                 dragActive ? "border-primary bg-primary/5" : "border-border",
                 isUploading && "opacity-50 pointer-events-none"
               )}
@@ -141,15 +141,15 @@ const VideoUploader = ({ onUploadComplete }: VideoUploaderProps) => {
                 className="hidden"
               />
               
-              <div className="flex flex-col items-center justify-center space-y-4 cursor-pointer">
-                <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Upload className="h-6 w-6 text-primary" />
+              <div className="flex flex-col items-center justify-center space-y-2 cursor-pointer">
+                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Upload className="h-5 w-5 text-primary" />
                 </div>
-                <div className="space-y-2">
-                  <p className="font-medium">
+                <div className="space-y-1">
+                  <p className="font-medium text-sm">
                     {selectedFile ? 'Change video file' : 'Upload a video file'}
                   </p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     Drag and drop or click to upload (max 1000MB)
                   </p>
                 </div>
@@ -158,7 +158,7 @@ const VideoUploader = ({ onUploadComplete }: VideoUploaderProps) => {
             
             {selectedFile && !uploadedFile && (
               <div className="flex items-center p-3 bg-secondary/50 rounded-md">
-                <FileVideo className="h-8 w-8 mr-4 flex-shrink-0 text-primary" />
+                <FileVideo className="h-6 w-6 mr-4 flex-shrink-0 text-primary" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">
                     {selectedFile.name}
@@ -187,10 +187,10 @@ const VideoUploader = ({ onUploadComplete }: VideoUploaderProps) => {
             
             {uploadedFile && (
               <div className="flex items-center bg-green-50 dark:bg-green-900/20 p-3 rounded-md">
-                <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-500 mr-4" />
+                <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-500 mr-3" />
                 <div>
-                  <p className="font-medium">Upload Complete</p>
-                  <p className="text-sm text-muted-foreground truncate">
+                  <p className="font-medium text-sm">Upload Complete</p>
+                  <p className="text-xs text-muted-foreground truncate">
                     {uploadedFile.originalName}
                   </p>
                 </div>
