@@ -26,8 +26,9 @@ const instructorFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
   email: z.string().email({ message: "Please enter a valid email address." }),
   specialty: z.string().min(2, { message: "Specialty must be at least 2 characters." }),
-  experience: z.string().transform((val) => parseInt(val, 10) || 0)
-    .refine((years) => years >= 0, { message: "Experience must be a positive number." }),
+  experience: z.string()
+    .refine((val) => !isNaN(Number(val)), { message: "Experience must be a number." })
+    .refine((val) => Number(val) >= 0, { message: "Experience must be a positive number." }),
   password: z.string().min(6, { message: "Password must be at least 6 characters." }),
   confirmPassword: z.string()
 }).refine((data) => data.password === data.confirmPassword, {
