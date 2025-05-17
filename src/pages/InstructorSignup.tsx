@@ -9,78 +9,65 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff, ArrowLeft, BookOpen } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+
+const instructorFormSchema = z.object({
+  name: z.string().min(2, { message: "Name must be at least 2 characters." }),
+  email: z.string().email({ message: "Please enter a valid email address." }),
+  specialty: z.string().min(2, { message: "Specialty must be at least 2 characters." }),
+  experience: z.string().transform((val) => parseInt(val, 10) || 0)
+    .refine((years) => years >= 0, { message: "Experience must be a positive number." }),
+  password: z.string().min(6, { message: "Password must be at least 6 characters." }),
+  confirmPassword: z.string()
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
+type InstructorFormValues = z.infer<typeof instructorFormSchema>;
 
 const InstructorSignup = () => {
   const navigate = useNavigate();
   const { signup } = useAuth();
   const { toast } = useToast();
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    specialty: '',
-    experience: '',
-    password: '',
-    confirmPassword: ''
-  });
   const [isLoading, setIsLoading] = useState(false);
-  const [errors, setErrors] = useState<{[key: string]: string}>({});
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    
-    // Clear error when field is edited
-    if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }));
+  const form = useForm<InstructorFormValues>({
+    resolver: zodResolver(instructorFormSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      specialty: "",
+      experience: "0",
+      password: "",
+      confirmPassword: ""
     }
-  };
+  });
 
-  const validateForm = () => {
-    const newErrors: {[key: string]: string} = {};
-    
-    if (!formData.name.trim()) newErrors.name = 'Full name is required';
-    if (!formData.email.trim()) newErrors.email = 'Email is required';
-    else if (!/^\S+@\S+\.\S+$/.test(formData.email)) newErrors.email = 'Invalid email format';
-    
-    if (!formData.specialty.trim()) newErrors.specialty = 'Specialty is required';
-    
-    if (!formData.experience.trim()) newErrors.experience = 'Years of experience is required';
-    else if (isNaN(Number(formData.experience)) || Number(formData.experience) < 0)
-      newErrors.experience = 'Experience must be a valid number';
-    
-    if (!formData.password) newErrors.password = 'Password is required';
-    else if (formData.password.length < 6) newErrors.password = 'Password must be at least 6 characters';
-    
-    if (formData.password !== formData.confirmPassword)
-      newErrors.confirmPassword = "Passwords don't match";
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!validateForm()) return;
-    
+  const handleSubmit = async (values: InstructorFormValues) => {
     setIsLoading(true);
     
     try {
       const signupData = {
-        name: formData.name,
-        email: formData.email,
-        password: formData.password,
+        name: values.name,
+        email: values.email,
+        password: values.password,
         role: 'instructor' as const,
-        specialty: formData.specialty,
-        experience: Number(formData.experience)
+        specialty: values.specialty,
+        experience: parseInt(values.experience, 10) || 0
       };
 
       await signup(signupData);
@@ -133,124 +120,137 @@ const InstructorSignup = () => {
 
         <Card className="w-full max-w-md mt-8">
           <CardContent className="pt-6">
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-1">
-                <Label htmlFor="name">Full Name</Label>
-                <Input
-                  id="name"
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
                   name="name"
-                  type="text"
-                  value={formData.name}
-                  onChange={handleChange}
-                  className={errors.name ? "border-red-500" : ""}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Full Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="John Doe" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-                {errors.name && <p className="text-xs text-red-500">{errors.name}</p>}
-              </div>
 
-              <div className="space-y-1">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
+                <FormField
+                  control={form.control}
                   name="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  className={errors.email ? "border-red-500" : ""}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input type="email" placeholder="john@example.com" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-                {errors.email && <p className="text-xs text-red-500">{errors.email}</p>}
-              </div>
 
-              <div className="space-y-1">
-                <Label htmlFor="specialty">Specialty</Label>
-                <Input
-                  id="specialty"
+                <FormField
+                  control={form.control}
                   name="specialty"
-                  type="text"
-                  placeholder="e.g., Web Development, Data Science"
-                  value={formData.specialty}
-                  onChange={handleChange}
-                  className={errors.specialty ? "border-red-500" : ""}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Specialty</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., Web Development, Data Science" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-                {errors.specialty && <p className="text-xs text-red-500">{errors.specialty}</p>}
-              </div>
-              
-              <div className="space-y-1">
-                <Label htmlFor="experience">Years of Experience</Label>
-                <Input
-                  id="experience"
+
+                <FormField
+                  control={form.control}
                   name="experience"
-                  type="number"
-                  min="0"
-                  placeholder="e.g., 5"
-                  value={formData.experience}
-                  onChange={handleChange}
-                  className={errors.experience ? "border-red-500" : ""}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Years of Experience</FormLabel>
+                      <FormControl>
+                        <Input type="number" min="0" placeholder="e.g., 5" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-                {errors.experience && <p className="text-xs text-red-500">{errors.experience}</p>}
-              </div>
 
-              <div className="space-y-1">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    name="password"
-                    type={showPassword ? "text" : "password"}
-                    value={formData.password}
-                    onChange={handleChange}
-                    className={errors.password ? "border-red-500 pr-10" : "pr-10"}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3 py-2"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
-                </div>
-                {errors.password && <p className="text-xs text-red-500">{errors.password}</p>}
-              </div>
-              
-              <div className="space-y-1">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
-                <div className="relative">
-                  <Input
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    type={showConfirmPassword ? "text" : "password"}
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    className={errors.confirmPassword ? "border-red-500 pr-10" : "pr-10"}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3 py-2"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  >
-                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
-                </div>
-                {errors.confirmPassword && <p className="text-xs text-red-500">{errors.confirmPassword}</p>}
-              </div>
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input
+                            type={showPassword ? "text" : "password"}
+                            placeholder="••••••••"
+                            {...field}
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3 py-2"
+                            onClick={() => setShowPassword(!showPassword)}
+                          >
+                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              <Alert className="bg-indigo-50 border-indigo-200 text-indigo-800 mt-4">
-                <AlertDescription>
-                  Your instructor application will be reviewed by our team. We'll notify you by email once it's approved.
-                </AlertDescription>
-              </Alert>
-              
-              <Button 
-                type="submit" 
-                className="w-full bg-indigo-700 hover:bg-indigo-800" 
-                disabled={isLoading}
-              >
-                {isLoading ? 'Submitting Application...' : 'Submit Application'}
-              </Button>
-            </form>
+                <FormField
+                  control={form.control}
+                  name="confirmPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Confirm Password</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input
+                            type={showConfirmPassword ? "text" : "password"}
+                            placeholder="••••••••"
+                            {...field}
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3 py-2"
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          >
+                            {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <Alert className="bg-indigo-50 border-indigo-200 text-indigo-800 mt-4">
+                  <AlertDescription>
+                    Your instructor application will be reviewed by our team. We'll notify you by email once it's approved.
+                  </AlertDescription>
+                </Alert>
+                
+                <Button 
+                  type="submit" 
+                  className="w-full bg-indigo-700 hover:bg-indigo-800" 
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Submitting Application...' : 'Submit Application'}
+                </Button>
+              </form>
+            </Form>
             
             <div className="mt-6 text-center text-sm">
               <p>Already have an account?{' '}

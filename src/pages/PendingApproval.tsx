@@ -8,24 +8,8 @@ import { CheckCircle2, Clock, User, BookOpen, Calendar, Mail } from 'lucide-reac
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 
-// Extended User interface to include instructorProfile
-interface InstructorProfile {
-  specialty: string;
-  experience: number;
-}
-
-interface ExtendedUser {
-  id: string;
-  name: string;
-  email: string;
-  role?: string;
-  status?: 'pending' | 'approved' | 'rejected';
-  instructorProfile?: InstructorProfile;
-}
-
 const PendingApproval = () => {
-  const { user: authUser, logout } = useAuth();
-  const user = authUser as ExtendedUser;
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   return (

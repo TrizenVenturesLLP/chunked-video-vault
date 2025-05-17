@@ -3,12 +3,14 @@ import React, { createContext, useContext, ReactNode, useState, useEffect } from
 import axios from '@/lib/axios';
 import { useToast } from '@/hooks/use-toast';
 
+// Export the User interface so it can be imported elsewhere
 export interface User {
   id: string;
   name: string;
   email: string;
   role?: string;
   status?: string;
+  displayName?: string;
   instructorProfile?: {
     specialty: string;
     experience: number;
@@ -97,11 +99,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       let response;
       
+      // Format the data for instructor signup to match the required MongoDB structure
       if (data.role === 'instructor') {
+        const instructorData = {
+          name: data.name,
+          displayName: data.name, // Set displayName same as name initially
+          email: data.email,
+          password: data.password,
+          role: 'instructor',
+          status: 'pending', // New instructors start with pending status
+          bio: '',
+          timezone: 'UTC',
+          instructorProfile: {
+            specialty: data.specialty || '',
+            experience: data.experience || 0
+          }
+        };
+        
         // Use instructor-specific signup endpoint
-        response = await axios.post('/api/auth/instructor-signup', data);
+        response = await axios.post('/api/auth/instructor-signup', instructorData);
       } else {
-        // Use regular signup endpoint
+        // Use regular signup endpoint for students
         response = await axios.post('/api/auth/signup', data);
       }
       
