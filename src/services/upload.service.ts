@@ -54,8 +54,18 @@ export const uploadVideo = async (
         if (Math.floor(start / chunkSize) === chunks - 1) {
           const responseData = await response.json();
           console.log("Final chunk response:", responseData);
+          
+          if (responseData.message && responseData.message.includes("local storage")) {
+            console.log("Using fallback storage mechanism");
+          }
+          
           if (responseData.file && responseData.file.videoUrl) {
-            onComplete(responseData.file);
+            // Pass along the entire response data so we can detect if this was a fallback
+            const fileInfo = {
+              ...responseData.file,
+              message: responseData.message
+            };
+            onComplete(fileInfo);
             onProgress(100); // Ensure we show 100% when complete
           } else {
             throw new Error("Invalid response from server for the final chunk");

@@ -1,3 +1,4 @@
+
 import { useState, useRef, ChangeEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,7 +17,7 @@ export interface UploadedFile {
 }
 
 interface VideoUploaderProps {
-  onUploadComplete?: (fileInfo: UploadedFile) => void;
+  onUploadComplete?: (fileInfo: UploadedFile, usingFallback?: boolean) => void;
   onUploadError?: (error: Error) => void;
 }
 
@@ -62,10 +63,16 @@ const VideoUploader = ({ onUploadComplete, onUploadError }: VideoUploaderProps) 
         setIsUploading(false);
         setUploadProgress(100);
         setUploadedFile(fileInfo);
+        
+        // Check if the response contains a message indicating fallback storage
+        const usingFallback = fileInfo.videoUrl.includes('localhost') || 
+                              fileInfo.videoUrl.includes('127.0.0.1') || 
+                              fileInfo.message?.includes('fallback') ||
+                              fileInfo.message?.includes('local storage');
+        
         if (onUploadComplete) {
-          onUploadComplete(fileInfo);
+          onUploadComplete(fileInfo, usingFallback);
         }
-        toast.success("Video uploaded successfully!");
       },
       (error) => {
         setIsUploading(false);
@@ -197,6 +204,11 @@ const VideoUploader = ({ onUploadComplete, onUploadError }: VideoUploaderProps) 
                   <p className="text-xs text-muted-foreground truncate">
                     {uploadedFile.originalName}
                   </p>
+                  {(uploadedFile.videoUrl.includes('localhost') || uploadedFile.videoUrl.includes('127.0.0.1')) && (
+                    <p className="text-xs text-amber-600 mt-1">
+                      Using local storage (fallback method)
+                    </p>
+                  )}
                 </div>
               </div>
             )}
