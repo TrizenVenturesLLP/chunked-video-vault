@@ -4,15 +4,12 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff, ArrowLeft, BookOpen } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -96,30 +93,26 @@ const InstructorSignup = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Button 
-        variant="ghost" 
-        className="absolute top-4 left-4 flex items-center text-gray-600"
-        onClick={() => navigate('/signup')}
-      >
-        <ArrowLeft className="h-4 w-4 mr-2" />
-        Back to Signup
-      </Button>
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
+      <div className="w-full max-w-md px-4">
+        <Button 
+          variant="ghost" 
+          className="absolute top-4 left-4 flex items-center text-gray-600"
+          onClick={() => navigate('/login')}
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back to Login
+        </Button>
 
-      <main className="flex-grow flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-center">
-          <div className="rounded-full bg-indigo-100 p-3">
-            <BookOpen className="h-12 w-12 text-indigo-700" />
+        <div className="text-center mb-6">
+          <div className="mx-auto w-16 h-16 flex items-center justify-center rounded-full bg-indigo-100 mb-4">
+            <BookOpen className="h-8 w-8 text-indigo-700" />
           </div>
+          <h2 className="text-2xl font-bold text-gray-900">Become an Instructor</h2>
+          <p className="mt-2 text-sm text-gray-600">Join our teaching community</p>
         </div>
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-          Become an Instructor
-        </h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
-          Join our teaching community and share your knowledge with students worldwide
-        </p>
 
-        <Card className="w-full max-w-md mt-8">
+        <Card>
           <CardContent className="pt-6">
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
@@ -236,12 +229,6 @@ const InstructorSignup = () => {
                     </FormItem>
                   )}
                 />
-
-                <Alert className="bg-indigo-50 border-indigo-200 text-indigo-800 mt-4">
-                  <AlertDescription>
-                    Your instructor application will be reviewed by our team. We'll notify you by email once it's approved.
-                  </AlertDescription>
-                </Alert>
                 
                 <Button 
                   type="submit" 
@@ -262,7 +249,7 @@ const InstructorSignup = () => {
             </div>
           </CardContent>
         </Card>
-      </main>
+      </div>
     </div>
   );
 };

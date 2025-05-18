@@ -7,16 +7,8 @@ import {
   BarChart2,
   MessageSquare,
   LogOut,
-  HelpCircle,
-  BookMarked,
-  GraduationCap,
-  FileQuestion,
-  BookOpenCheck,
-  ClipboardList,
-  Award,
-  UserCheck,
   Video,
-  LifeBuoy
+  Award
 } from 'lucide-react';
 
 type NavItemProps = {
@@ -43,33 +35,6 @@ const NavItem = ({ name, href, icon: Icon, onClick }: NavItemProps) => (
   </NavLink>
 );
 
-type NavGroupProps = {
-  title: string;
-  items: {
-    name: string;
-    href: string;
-    icon: React.ElementType;
-  }[];
-  onItemClick?: () => void;
-};
-
-const NavGroup = ({ title, items, onItemClick }: NavGroupProps) => (
-  <div className="mt-6">
-    <h2 className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-      {title}
-    </h2>
-    <div className="mt-2 space-y-1">
-      {items.map((item) => (
-        <NavItem 
-          key={item.name} 
-          {...item} 
-          onClick={onItemClick} 
-        />
-      ))}
-    </div>
-  </div>
-);
-
 type SidebarProps = {
   isOpen: boolean;
   onClose: () => void;
@@ -78,27 +43,14 @@ type SidebarProps = {
 
 const Sidebar = ({ isOpen, onClose, onLogout }: SidebarProps) => {
   const mainNavigation = [
-    { name: 'Dashboard', href: '/instructor/dashboard', icon: BarChart2 },
+    { name: 'Dashboard', href: '/instructor', icon: BarChart2 },
     { name: 'Courses', href: '/instructor/courses', icon: BookOpen },
     { name: 'Students', href: '/instructor/students', icon: Users },
-    { name: 'Videos', href: '/instructor/videos', icon: Video },
+    { name: 'Videos', href: '/instructor/video-upload', icon: Video },
     { name: 'Assessments', href: '/instructor/assessments', icon: Award },
-    { name: 'Live Sessions', href: '/instructor/sessions', icon: BookOpenCheck },
+    { name: 'Live Sessions', href: '/instructor/live-sessions', icon: BookOpen },
     { name: 'Messages', href: '/instructor/messages', icon: MessageSquare },
-  ];
-
-  const staticPages = [
-    { name: 'Instructor Guidelines', href: '/instructor/guidelines', icon: BookMarked },
-    { name: 'Teaching Resources', href: '/instructor/teaching-resources', icon: GraduationCap },
-    { name: 'FAQ', href: '/instructor/faq', icon: HelpCircle },
-    { name: 'Support', href: '/instructor/support', icon: LifeBuoy },
-  ];
-
-  const studentContentPages = [
-    { name: 'Student Progress', href: '/instructor/student-progress', icon: BookOpenCheck },
-    { name: 'Assignment Submissions', href: '/instructor/assignments', icon: ClipboardList },
-    { name: 'Student Certificates', href: '/instructor/certificates', icon: Award },
-    { name: 'Student Attendance', href: '/instructor/attendance', icon: UserCheck },
+    { name: 'Profile', href: '/instructor/profile', icon: Users },
   ];
 
   const onMobileItemClick = () => {
@@ -110,35 +62,16 @@ const Sidebar = ({ isOpen, onClose, onLogout }: SidebarProps) => {
   return (
     <div className="flex flex-col h-full">
       {/* Main Navigation */}
-      <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
-        <div className="mb-4">
-          <h2 className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-            Main Menu
-          </h2>
-          <div className="mt-2 space-y-1">
-            {mainNavigation.map((item) => (
-              <NavItem 
-                key={item.name} 
-                {...item} 
-                onClick={onMobileItemClick} 
-              />
-            ))}
-          </div>
+      <nav className="flex-1 px-2 py-4 overflow-y-auto">
+        <div className="space-y-1">
+          {mainNavigation.map((item) => (
+            <NavItem 
+              key={item.name} 
+              {...item} 
+              onClick={onMobileItemClick} 
+            />
+          ))}
         </div>
-
-        {/* Student Content Pages */}
-        <NavGroup 
-          title="Student Content" 
-          items={studentContentPages} 
-          onItemClick={onMobileItemClick} 
-        />
-
-        {/* Static Pages */}
-        <NavGroup 
-          title="Resources & Support" 
-          items={staticPages} 
-          onItemClick={onMobileItemClick} 
-        />
       </nav>
 
       {/* Signout Button */}

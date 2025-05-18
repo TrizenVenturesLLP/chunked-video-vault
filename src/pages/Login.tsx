@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -35,19 +36,9 @@ const Login = () => {
   // Effect to redirect if already logged in
   useEffect(() => {
     if (isAuthenticated && user) {
-      navigateBasedOnRole(user.role);
+      navigate('/instructor');
     }
   }, [isAuthenticated, user, navigate]);
-
-  // Function to handle navigation based on user role
-  const navigateBasedOnRole = (role?: string) => {
-    if (role === 'instructor') {
-      navigate('/instructor/dashboard');
-    } else {
-      // Default navigation for other roles (like students)
-      navigate('/courses');
-    }
-  };
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
@@ -62,10 +53,7 @@ const Login = () => {
     
     try {
       await login(values.email, values.password);
-      
-      // Navigate based on user role - this will be called after the user state is updated
-      // by the login function, which is picked up by the useEffect above
-      
+      // Login will trigger the useEffect above to navigate
     } catch (error: any) {
       console.error('Login error:', error);
       const errorMessage = error.message || 'Invalid email or password. Please try again.';
@@ -95,35 +83,14 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Navigation */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex">
-              <Link to="/" className="flex-shrink-0 flex items-center">
-                <span className="text-xl font-bold text-indigo-700">TRIZEN</span>
-              </Link>
-              <nav className="hidden sm:ml-6 sm:flex sm:space-x-8">
-                <Link to="/" className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-indigo-700">Home</Link>
-                <Link to="/courses" className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-indigo-700">My Courses</Link>
-                <Link to="/explore" className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-indigo-700">Explore Courses</Link>
-                <Link to="/pricing" className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-indigo-700">Pricing</Link>
-                <Link to="/about" className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-indigo-700">About</Link>
-                <Link to="/contact" className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-indigo-700">Contact</Link>
-              </nav>
-            </div>
-            <div className="flex items-center">
-              <Button variant="ghost" onClick={() => navigate('/login')}>Login</Button>
-              <Button variant="default" className="ml-2 bg-indigo-700 hover:bg-indigo-800" onClick={() => navigate('/signup')}>Signup</Button>
-            </div>
-          </div>
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
+      <div className="w-full max-w-md px-4">
+        <div className="text-center mb-6">
+          <h1 className="text-3xl font-bold text-indigo-700">TRIZEN</h1>
+          <p className="text-gray-600 mt-2">Learning Management System for Instructors</p>
         </div>
-      </header>
 
-      {/* Main content */}
-      <main className="flex-grow flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <Card className="w-full max-w-md">
+        <Card>
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Welcome Back</CardTitle>
             <CardDescription>Enter your credentials to access your account</CardDescription>
@@ -186,49 +153,14 @@ const Login = () => {
 
             <div className="mt-6 text-center text-sm">
               <p>Don't have an account?{' '}
-                <Link to="/signup" className="text-indigo-600 hover:text-indigo-500 hover:underline">
-                  Sign up
+                <Link to="/instructor-signup" className="text-indigo-600 hover:text-indigo-500 hover:underline">
+                  Sign up as an Instructor
                 </Link>
               </p>
             </div>
           </CardContent>
         </Card>
-      </main>
-
-      {/* Footer */}
-      <footer className="bg-gray-50 border-t border-gray-200">
-        <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">TRIZEN</h3>
-              <p className="text-gray-600 text-sm">High-quality recorded and live online training for professionals and beginners.</p>
-            </div>
-            
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Links</h3>
-              <ul className="space-y-2">
-                <li><Link to="#" className="text-gray-600 hover:text-indigo-600 text-sm">Contribute</Link></li>
-                <li><Link to="#" className="text-gray-600 hover:text-indigo-600 text-sm">Events</Link></li>
-                <li><Link to="#" className="text-gray-600 hover:text-indigo-600 text-sm">Gallery</Link></li>
-                <li><Link to="#" className="text-gray-600 hover:text-indigo-600 text-sm">About Us</Link></li>
-                <li><Link to="/instructor-signup" className="text-gray-600 hover:text-indigo-600 text-sm">Become an Instructor</Link></li>
-              </ul>
-            </div>
-            
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Legal</h3>
-              <ul className="space-y-2">
-                <li><Link to="#" className="text-gray-600 hover:text-indigo-600 text-sm">Terms of Service</Link></li>
-                <li><Link to="#" className="text-gray-600 hover:text-indigo-600 text-sm">Privacy Policy</Link></li>
-                <li><Link to="#" className="text-gray-600 hover:text-indigo-600 text-sm">Cookie Policy</Link></li>
-              </ul>
-            </div>
-          </div>
-          <div className="mt-8 pt-8 border-t border-gray-200">
-            <p className="text-center text-gray-500 text-sm">© 2025 Trizen. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
+      </div>
     </div>
   );
 };
