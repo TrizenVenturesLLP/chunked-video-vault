@@ -3,18 +3,36 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, InfoIcon } from 'lucide-react';
 import VideoUploader from '@/components/VideoUploader';
 import { UploadedFile } from '@/components/VideoUploader';
 import { toast } from 'sonner';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const VideoUpload = () => {
   const navigate = useNavigate();
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isUsingFallback, setIsUsingFallback] = useState(false);
 
-  const handleUploadComplete = (fileInfo: UploadedFile) => {
+  const handleUploadComplete = (fileInfo: UploadedFile, usingFallback: boolean = false) => {
     setUploadedFiles(prev => [...prev, fileInfo]);
-    toast.success("Video uploaded successfully");
+    setIsUsingFallback(usingFallback);
+    
+    if (usingFallback) {
+      toast.success("Video processed successfully (using local storage)");
+      setUploadError("Cloud storage unavailable. Using local storage as fallback. Your videos are accessible but may have limited durability.");
+    } else {
+      toast.success("Video uploaded successfully to cloud storage");
+      // Clear any previous errors when a successful upload happens
+      setUploadError(null);
+    }
+  };
+
+  const handleUploadError = (error: Error) => {
+    console.error('Upload error:', error);
+    setUploadError("There was a problem with the video storage service. Your video was processed but may be using a fallback URL.");
+    toast.error("Upload encountered an issue");
   };
 
   return (
@@ -30,9 +48,32 @@ const VideoUpload = () => {
         <h1 className="text-3xl font-bold">Video Upload</h1>
       </div>
 
+      {uploadError && (
+        <Alert variant="destructive" className="bg-amber-50 border-amber-200">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Storage Service Warning</AlertTitle>
+          <AlertDescription>
+            {uploadError}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {isUsingFallback && !uploadError && (
+        <Alert className="bg-blue-50 border-blue-200">
+          <InfoIcon className="h-4 w-4" />
+          <AlertTitle>Using Local Storage</AlertTitle>
+          <AlertDescription>
+            Your videos are being stored locally instead of in cloud storage. They will be accessible through the provided URLs but may have limited durability.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div>
-          <VideoUploader onUploadComplete={handleUploadComplete} />
+          <VideoUploader 
+            onUploadComplete={handleUploadComplete}
+            onUploadError={handleUploadError}
+          />
         </div>
         
         <div>
@@ -55,8 +96,14 @@ const VideoUpload = () => {
                             {(file.size / (1024 * 1024)).toFixed(2)}MB
                           </p>
                         </div>
-                        <span className="text-sm bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                          Uploaded
+                        <span className={`text-sm px-2 py-1 rounded-full ${
+                          file.videoUrl.includes('localhost') || file.videoUrl.includes('127.0.0.1') 
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-green-100 text-green-800'
+                        }`}>
+                          {file.videoUrl.includes('localhost') || file.videoUrl.includes('127.0.0.1') 
+                            ? 'Local Storage' 
+                            : 'Cloud Storage'}
                         </span>
                       </div>
                       <div className="mt-2">
