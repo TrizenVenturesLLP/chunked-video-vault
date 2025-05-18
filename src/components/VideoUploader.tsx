@@ -1,10 +1,12 @@
+
 import { useState, useRef, ChangeEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, FileVideo, CheckCircle, Loader2, AlertCircle, Cloud, HardDrive } from "lucide-react";
+import { Upload, FileVideo, CheckCircle, Loader2, AlertCircle, Cloud, HardDrive, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { uploadVideo, validateVideoFile } from "@/services/upload.service";
 import { cn } from "@/lib/utils";
+import { Progress } from "@/components/ui/progress";
 
 export interface UploadedFile {
   filename: string;
@@ -28,6 +30,7 @@ const VideoUploader = ({ onUploadComplete }: VideoUploaderProps) => {
   const [dragActive, setDragActive] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<UploadedFile | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [attemptingRetry, setAttemptingRetry] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -56,6 +59,7 @@ const VideoUploader = ({ onUploadComplete }: VideoUploaderProps) => {
     setIsUploading(true);
     setUploadProgress(0);
     setUploadError(null);
+    setAttemptingRetry(false);
     
     try {
       await uploadVideo(
@@ -68,6 +72,7 @@ const VideoUploader = ({ onUploadComplete }: VideoUploaderProps) => {
           setUploadProgress(100);
           setUploadedFile(fileInfo);
           setUploadError(null);
+          setAttemptingRetry(false);
           
           if (onUploadComplete) {
             onUploadComplete(fileInfo);
@@ -85,6 +90,35 @@ const VideoUploader = ({ onUploadComplete }: VideoUploaderProps) => {
       const errorMessage = error instanceof Error ? error.message : "Unknown upload error";
       setUploadError(errorMessage);
       toast.error(`Upload error: ${errorMessage}`);
+    }
+  };
+  
+  const handleRetry = async () => {
+    setAttemptingRetry(true);
+    
+    try {
+      // First try to clean up any existing chunks on the server
+      await fetch(`${process.env.VITE_API_URL || "http://localhost:3000/api"}/upload/cleanup`, {
+        method: "POST",
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          filename: selectedFile?.name,
+        })
+      });
+      
+      // Wait a moment for cleanup to complete
+      setTimeout(() => {
+        setAttemptingRetry(false);
+        setUploadError(null);
+        handleUpload();
+      }, 1000);
+    } catch (error) {
+      console.error("Cleanup error:", error);
+      setAttemptingRetry(false);
+      // Try upload anyway
+      handleUpload();
     }
   };
   
@@ -178,7 +212,7 @@ const VideoUploader = ({ onUploadComplete }: VideoUploaderProps) => {
                     {selectedFile.name}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {formatFileSize(selectedFile.size)}
+                    {formatFileSize(selectedFile.size)} • {Math.ceil(selectedFile.size / (256 * 1024))} chunks
                   </p>
                 </div>
               </div>
@@ -187,15 +221,17 @@ const VideoUploader = ({ onUploadComplete }: VideoUploaderProps) => {
             {isUploading && (
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span>Uploading...</span>
+                  <span>Uploading{uploadProgress > 0 && uploadProgress < 90 ? " chunks" : 
+                         uploadProgress >= 90 && uploadProgress < 100 ? " (finalizing)" : 
+                         "..."}</span>
                   <span>{Math.round(uploadProgress)}%</span>
                 </div>
-                <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-primary transition-all duration-300"
-                    style={{ width: `${uploadProgress}%` }}
-                  ></div>
-                </div>
+                <Progress value={uploadProgress} className="h-2" />
+                <p className="text-xs text-center text-muted-foreground mt-2">
+                  {uploadProgress < 90 ? "Uploading file chunks..." : 
+                   uploadProgress >= 90 && uploadProgress < 100 ? "Processing and finalizing..." : 
+                   "Upload complete!"}
+                </p>
               </div>
             )}
             
@@ -203,21 +239,40 @@ const VideoUploader = ({ onUploadComplete }: VideoUploaderProps) => {
               <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-md border border-red-200 dark:border-red-800">
                 <div className="flex items-start">
                   <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 mr-2 flex-shrink-0 mt-0.5" />
-                  <div>
+                  <div className="flex-1">
                     <p className="text-sm font-medium text-red-800 dark:text-red-300">
                       Upload Error
                     </p>
                     <p className="text-xs text-red-700 dark:text-red-400 mt-1">
                       {uploadError}
                     </p>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="mt-2 text-xs border-red-300 text-red-700 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/30"
-                      onClick={() => setUploadError(null)}
-                    >
-                      Dismiss
-                    </Button>
+                    <div className="flex space-x-2 mt-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="text-xs border-red-300 text-red-700 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/30"
+                        onClick={() => setUploadError(null)}
+                      >
+                        Dismiss
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs text-amber-700 border-amber-300 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-900/30"
+                        onClick={handleRetry}
+                        disabled={attemptingRetry}
+                      >
+                        {attemptingRetry ? (
+                          <>
+                            <Loader2 className="h-3 w-3 mr-1 animate-spin" /> Cleaning up...
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="h-3 w-3 mr-1" /> Retry Upload
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -257,7 +312,9 @@ const VideoUploader = ({ onUploadComplete }: VideoUploaderProps) => {
               {isUploading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Uploading
+                  {uploadProgress < 90 ? "Uploading" : 
+                   uploadProgress >= 90 && uploadProgress < 100 ? "Finalizing" : 
+                   "Processing"}
                 </>
               ) : (
                 <>
