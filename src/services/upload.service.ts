@@ -21,17 +21,17 @@ export const uploadVideo = async (
   onComplete: UploadCompleteCallback,
   onError: UploadErrorCallback
 ) => {
-  // Use 100KB chunks for more reliable uploads
-  const chunkSize = 100 * 1024; // 100KB chunks
+  // Use 10MB chunks for optimal performance
+  const chunkSize = 10 * 1024 * 1024; // 10MB chunks
   const chunks = Math.ceil(file.size / chunkSize);
   let lastProgressUpdate = Date.now();
-  const progressUpdateInterval = 300; // Update progress more frequently
+  const progressUpdateInterval = 300; // Update progress frequently
   const uploadedChunks = new Set<number>();
   const failedChunks = new Set<number>();
   const maxConcurrentUploads = 3; // Limit concurrent uploads
   
   try {
-    console.log(`Starting upload of ${file.name} in ${chunks} chunks`);
+    console.log(`Starting upload of ${file.name} in ${chunks} chunks (${chunkSize/1024/1024}MB each)`);
     
     // Function to upload a single chunk
     const uploadChunk = async (chunkIndex: number): Promise<boolean> => {
@@ -45,10 +45,12 @@ export const uploadVideo = async (
       const chunk = file.slice(start, end);
       const formData = new FormData();
       
+      // Send important metadata with each chunk
       formData.append("video", chunk, file.name);
       formData.append("chunk", chunkIndex.toString());
       formData.append("totalChunks", chunks.toString());
       formData.append("originalname", file.name);
+      formData.append("mimeType", file.type);
       
       // Update progress reasonably to avoid UI freezes
       const now = Date.now();
@@ -69,6 +71,8 @@ export const uploadVideo = async (
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
             
+            console.log(`Uploading chunk ${chunkIndex} (${Math.round((end-start)/1024/1024 * 100) / 100}MB), attempt ${attempts}`);
+            
             const response = await fetch(`${API_URL}/upload`, {
               method: "POST",
               body: formData,
@@ -81,17 +85,12 @@ export const uploadVideo = async (
               const errorData = await response.json().catch(() => ({ error: `HTTP error ${response.status}` }));
               throw new Error(errorData.error || `Chunk upload failed with status: ${response.status}`);
             }
-
+            
             success = true;
             uploadedChunks.add(chunkIndex);
+            console.log(`Chunk ${chunkIndex} uploaded successfully`);
             
-            const responseData = await response.json();
-            
-            // If this was the last chunk and server indicates successful merge
-            if (responseData.message.includes("merged successfully") && responseData.file) {
-              return true;
-            }
-            
+            return true;
           } catch (retryError) {
             if (attempts >= maxAttempts) {
               console.error(`Failed to upload chunk ${chunkIndex} after ${attempts} attempts`);
@@ -113,17 +112,14 @@ export const uploadVideo = async (
     
     // Upload chunks with limited concurrency
     const uploadChunks = async () => {
-      // Start with first and last chunk for better UX feedback
+      // Start with first chunk for sequential processing
       await uploadChunk(0);
-      if (chunks > 1) {
-        await uploadChunk(chunks - 1);
-      }
       
       // Then upload the rest in batches
-      for (let batchStart = 1; batchStart < chunks - 1; batchStart += maxConcurrentUploads) {
+      for (let batchStart = 1; batchStart < chunks; batchStart += maxConcurrentUploads) {
         const batchPromises = [];
         
-        for (let i = 0; i < maxConcurrentUploads && batchStart + i < chunks - 1; i++) {
+        for (let i = 0; i < maxConcurrentUploads && batchStart + i < chunks; i++) {
           batchPromises.push(uploadChunk(batchStart + i));
         }
         
@@ -148,7 +144,7 @@ export const uploadVideo = async (
       onProgress(97);
     }
     
-    // Try to finalize even if some chunks failed - the server will use what it has
+    // Try to finalize even if some chunks failed
     try {
       onProgress(98);
       console.log("Finalizing upload...");
@@ -162,6 +158,7 @@ export const uploadVideo = async (
           originalname: file.name,
           totalChunks: chunks,
           availableChunks: Array.from(uploadedChunks),
+          mimeType: file.type
         }),
       });
       
@@ -175,14 +172,12 @@ export const uploadVideo = async (
       onProgress(100);
       onComplete(responseData.file);
       
-      // Show appropriate toast message based on storage mode
-      const isLocalStorage = responseData.file.storageMode === 'local' || responseData.file.usingFallback;
-      if (isLocalStorage) {
+      if (responseData.file.storageMode === 'cloud') {
+        toast.success("Video uploaded to MinIO cloud storage successfully");
+      } else {
         toast.info("Video uploaded to local storage", {
           duration: 5000
         });
-      } else {
-        toast.success("Video uploaded to cloud storage successfully");
       }
       
     } catch (finalizeError) {

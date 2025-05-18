@@ -1,3 +1,4 @@
+
 import express from 'express';
 import multer from 'multer';
 import fs from 'fs-extra';
@@ -15,9 +16,8 @@ const uploadPathChunks = path.join(process.cwd(), 'chunks');
 await fs.mkdir(uploadPath, { recursive: true });
 await fs.mkdir(uploadPathChunks, { recursive: true });
 
-// Setup MinIO client with fixed credentials for testing
+// Setup MinIO client
 const minioClient = new Client({
-  // Use hardcoded credentials for testing if environment variables are not set
   endPoint: 'lmsbackendminio-api.llp.trizenventures.com',
   port: 443,
   useSSL: true,
@@ -63,7 +63,7 @@ let minioAvailable = false;
   }
 })();
 
-// Helper function to sanitize filenames to prevent path traversal
+// Helper function to sanitize filenames
 const sanitizeFilename = (filename) => {
   return filename.replace(/[^a-zA-Z0-9._-]/g, '_');
 };
@@ -75,44 +75,17 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     try {
-      // Sanitize the base file name
-      const safeFilename = sanitizeFilename(file.originalname);
-      const baseFileName = safeFilename.replace(/\s+/g, '');
+      // Get the chunk number from request body
+      const chunkNumber = req.body.chunk;
+      const safeFilename = sanitizeFilename(file.originalname || req.body.originalname).replace(/\s+/g, '');
       
-      // Get the chunk number from request body if provided
-      if (req.body.chunk !== undefined) {
-        const chunkNumber = req.body.chunk;
-        const fileName = `${baseFileName}.part_${chunkNumber}`;
-        console.log(`Creating filename for specified chunk: ${fileName}`);
-        cb(null, fileName);
-        return;
-      }
-      
-      // Otherwise fallback to determining the next available chunk number
-      fs.readdir(uploadPathChunks, (err, files) => {
-        if (err) {
-          return cb(err);
-        }
-  
-        // Filter files that match the base filename
-        const matchingFiles = files.filter((f) => f.startsWith(baseFileName));
-  
-        let chunkNumber = 0;
-        if (matchingFiles.length > 0) {
-          // Extract the highest chunk number
-          const highestChunk = Math.max(
-            ...matchingFiles.map((f) => {
-              const match = f.match(/\.part_(\d+)$/);
-              return match ? parseInt(match[1], 10) : -1;
-            })
-          );
-          chunkNumber = highestChunk + 1;
-        }
-  
-        const fileName = `${baseFileName}.part_${chunkNumber}`;
+      if (chunkNumber !== undefined) {
+        const fileName = `${safeFilename}.part_${chunkNumber}`;
         console.log(`Creating filename for chunk: ${fileName}`);
         cb(null, fileName);
-      });
+      } else {
+        cb(new Error('Chunk number not provided'));
+      }
     } catch (error) {
       console.error('Error in filename generation:', error);
       cb(error);
@@ -122,12 +95,9 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 500 * 1024 * 1024 }, // 500MB limit per chunk
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB limit per chunk
   fileFilter: (req, file, cb) => {
-    if (
-      file.mimetype.startsWith('video/') ||
-      file.mimetype === 'application/octet-stream'
-    ) {
+    if (file.mimetype.startsWith('video/') || file.mimetype === 'application/octet-stream') {
       cb(null, true);
     } else {
       cb(new Error('Not a video file. Please upload only videos.'));
@@ -135,7 +105,7 @@ const upload = multer({
   },
 });
 
-// Regular chunk upload endpoint
+// Handle chunk uploads
 router.post('/upload', upload.single('video'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No video file uploaded.' });
@@ -149,56 +119,23 @@ router.post('/upload', upload.single('video'), async (req, res) => {
     console.log(`Processing chunk ${chunkNumber + 1}/${totalChunks} of ${fileName}`);
     console.log(`Saved chunk file: ${req.file.path}`);
     
-    // If this is the last chunk, check if we have all needed chunks and merge
-    if (chunkNumber === totalChunks - 1) {
-      try {
-        console.log(`Last chunk received. Verifying all ${totalChunks} chunks exist...`);
-        
-        // Check if all chunks exist before attempting to merge
-        const missingChunks = await checkChunksBeforeMerging(fileName, totalChunks);
-        
-        if (missingChunks.length === 0) {
-          console.log("All chunks verified. Beginning merge process...");
-          await mergeChunks(fileName, totalChunks);
-          console.log(`All chunks merged for ${fileName}`);
-        } else {
-          console.error(`Cannot merge - missing chunks: ${missingChunks.join(', ')}`);
-          return res.status(400).json({ 
-            error: 'Some chunks are missing. Cannot complete merge.', 
-            missingChunks: missingChunks
-          });
-        }
-      } catch (mergeError) {
-        console.error('Error merging chunks:', mergeError);
-        return res.status(500).json({ error: `Error merging chunks: ${mergeError.message}` });
-      }
-    }
-
-    // Return success response
+    // Return success response without trying to merge immediately
+    // Merging will be done at the /complete endpoint
     const baseURL = minioAvailable 
       ? `https://lmsbackendminio-api.llp.trizenventures.com/${bucketName}/` 
       : `http://${req.get('host')}/uploads/`;
     
-    const videoUrl = minioAvailable
-      ? `${baseURL}${fileName}`
-      : `http://${req.get('host')}/uploads/${fileName}`;
-    
-    const fileInfo = {
-      filename: fileName,
-      originalName: req.body.originalname,
-      size: req.file.size,
-      mimetype: req.file.mimetype,
-      baseURL: baseURL,
-      videoUrl: videoUrl,
-      storageMode: minioAvailable ? 'cloud' : 'local',
-      usingFallback: !minioAvailable
-    };
-
     res.status(200).json({
-      message: chunkNumber === totalChunks - 1 
-        ? 'All chunks uploaded and merged successfully' 
-        : 'Chunk uploaded successfully',
-      file: fileInfo,
+      message: 'Chunk uploaded successfully', 
+      file: {
+        filename: fileName,
+        originalName: req.body.originalname,
+        size: req.file.size,
+        mimetype: req.body.mimeType || req.file.mimetype,
+        baseURL: baseURL,
+        videoUrl: `${baseURL}${fileName}`,
+        storageMode: minioAvailable ? 'cloud' : 'local'
+      },
       chunkNumber: chunkNumber,
       totalChunks: totalChunks
     });
@@ -208,53 +145,101 @@ router.post('/upload', upload.single('video'), async (req, res) => {
   }
 });
 
-// Add a new complete endpoint for manual finalization
+// Complete upload and merge chunks
 router.post('/upload/complete', async (req, res) => {
   try {
-    const totalChunks = parseInt(req.body.totalChunks || '0', 10);
     const fileName = sanitizeFilename(req.body.originalname).replace(/\s+/g, '');
+    const totalChunks = parseInt(req.body.totalChunks || '0', 10);
+    const availableChunks = req.body.availableChunks || [];
+    const mimeType = req.body.mimeType || 'video/mp4';
     
-    console.log(`Attempting to complete upload for ${fileName} with ${totalChunks} chunks`);
-    
-    // Verify all chunks exist before merging
-    const availableChunks = await getAvailableChunks(fileName);
-    console.log(`Found ${availableChunks.length} chunks for file ${fileName}`);
+    console.log(`Finalizing upload for ${fileName} with ${availableChunks.length} available chunks out of ${totalChunks}`);
     
     if (availableChunks.length === 0) {
-      return res.status(404).json({ error: 'No chunks found for this file' });
+      return res.status(400).json({ error: 'No chunks available to merge' });
     }
     
-    // Sort the chunks by number to ensure correct order
-    const sortedChunks = availableChunks.sort((a, b) => a - b);
+    // Sort the chunks to ensure correct order
+    const sortedChunks = [...availableChunks].sort((a, b) => a - b);
     
+    // Merge the chunks
+    const mergedFilePath = path.join(uploadPath, fileName);
     try {
-      console.log(`Merging ${sortedChunks.length} available chunks for file ${fileName}`);
-      await mergeAvailableChunks(fileName, sortedChunks);
-      console.log(`Successfully merged available chunks for ${fileName}`);
+      // Merge chunks to local file first
+      await mergeChunks(fileName, sortedChunks);
+      console.log(`Local merge complete for ${fileName}`);
       
-      const baseURL = minioAvailable 
-        ? `https://lmsbackendminio-api.llp.trizenventures.com/${bucketName}/` 
-        : `http://${req.get('host')}/uploads/`;
+      let storageMode = 'local';
+      let videoUrl = `http://${req.get('host')}/uploads/${fileName}`;
+      let baseURL = `http://${req.get('host')}/uploads/`;
+      let usingFallback = false;
       
-      const videoUrl = minioAvailable
-        ? `${baseURL}${fileName}`
-        : `http://${req.get('host')}/uploads/${fileName}`;
+      // If MinIO is available, upload the merged file to MinIO
+      if (minioAvailable) {
+        try {
+          console.log(`Uploading merged file to MinIO: ${fileName}`);
+          
+          await minioClient.fPutObject(
+            bucketName,
+            fileName,
+            mergedFilePath,
+            { 'Content-Type': mimeType }
+          );
+          
+          console.log(`Successfully uploaded ${fileName} to MinIO bucket ${bucketName}`);
+          
+          // Update URL to point to MinIO
+          storageMode = 'cloud';
+          baseURL = `https://lmsbackendminio-api.llp.trizenventures.com/${bucketName}/`;
+          videoUrl = `${baseURL}${fileName}`;
+          
+          // Make the object public
+          try {
+            const policy = {
+              Version: '2012-10-17',
+              Statement: [
+                {
+                  Effect: 'Allow',
+                  Principal: { AWS: ['*'] },
+                  Action: ['s3:GetObject'],
+                  Resource: [`arn:aws:s3:::${bucketName}/${fileName}`]
+                }
+              ]
+            };
+            
+            await minioClient.setBucketPolicy(bucketName, JSON.stringify(policy));
+            console.log(`Made ${fileName} publicly accessible in bucket ${bucketName}`);
+          } catch (policyErr) {
+            console.error('Error setting bucket policy:', policyErr);
+          }
+          
+        } catch (minioErr) {
+          console.error('Error uploading to MinIO:', minioErr);
+          usingFallback = true;
+          storageMode = 'local';
+          videoUrl = `http://${req.get('host')}/uploads/${fileName}`;
+          baseURL = `http://${req.get('host')}/uploads/`;
+        }
+      } else {
+        usingFallback = true;
+      }
       
       const fileInfo = {
         filename: fileName,
         originalName: req.body.originalname,
         videoUrl: videoUrl,
         baseURL: baseURL,
-        storageMode: minioAvailable ? 'cloud' : 'local',
-        usingFallback: !minioAvailable
+        storageMode: storageMode,
+        usingFallback: usingFallback
       };
       
       return res.status(200).json({
         message: 'File processed successfully with available chunks',
         file: fileInfo
       });
+      
     } catch (mergeError) {
-      console.error('Error merging available chunks:', mergeError);
+      console.error('Error merging chunks:', mergeError);
       return res.status(500).json({ error: `Error merging chunks: ${mergeError.message}` });
     }
   } catch (error) {
@@ -263,69 +248,15 @@ router.post('/upload/complete', async (req, res) => {
   }
 });
 
-// Keep upload/finalize endpoint for backward compatibility
-router.post('/upload/finalize', async (req, res) => {
-  try {
-    const totalChunks = parseInt(req.body.totalChunks || '1', 10);
-    const fileName = sanitizeFilename(req.body.originalname).replace(/\s+/g, '');
-    
-    console.log(`Finalizing upload for ${fileName} with ${totalChunks} chunks`);
-    
-    // Get available chunks instead of checking specific chunks
-    const availableChunks = await getAvailableChunks(fileName);
-    
-    if (availableChunks.length === 0) {
-      return res.status(404).json({ error: 'No chunks found for this file' });
-    }
-    
-    console.log(`Found ${availableChunks.length} chunks out of ${totalChunks} expected`);
-    
-    try {
-      // Sort chunks to ensure they're processed in order
-      const sortedChunks = availableChunks.sort((a, b) => a - b);
-      await mergeAvailableChunks(fileName, sortedChunks);
-      console.log(`All available chunks merged for ${fileName}`);
-      
-      const videoUrl = `http://${req.get('host')}/uploads/${fileName}`;
-      const baseURL = `https://lmsbackendminio-api.llp.trizenventures.com/${bucketName}/`;
-      
-      return res.status(200).json({
-        message: 'File processed successfully with available chunks',
-        storageMode: 'local',
-        file: {
-          filename: fileName,
-          originalName: req.body.originalname,
-          size: 0,
-          mimetype: 'video/mp4',
-          baseURL: baseURL,
-          videoUrl: videoUrl,
-          usingFallback: true,
-          storageMode: 'local'
-        }
-      });
-    } catch (mergeError) {
-      console.error('Error merging chunks:', mergeError);
-      return res.status(500).json({ error: `Error merging chunks: ${mergeError.message}` });
-    }
-  } catch (error) {
-    console.error('Error during file finalization:', error);
-    res.status(500).json({ error: 'An error occurred while finalizing the video upload.' });
-  }
-});
-
-// Cleanup endpoint to remove partial uploads
+// Cleanup endpoint for removing partial uploads
 router.post('/upload/cleanup', async (req, res) => {
   try {
     const fileName = sanitizeFilename(req.body.filename).replace(/\s+/g, '');
     console.log(`Cleaning up any chunks for ${fileName}`);
     
-    // Read all files in the chunks directory
     const files = await fs.readdir(uploadPathChunks);
-    
-    // Filter for files that match this filename's pattern
     const matchingFiles = files.filter(file => file.startsWith(fileName));
     
-    // Delete each matching file
     let deletedCount = 0;
     for (const file of matchingFiles) {
       try {
@@ -336,7 +267,6 @@ router.post('/upload/cleanup', async (req, res) => {
       }
     }
     
-    // Also check if a partial merged file exists and delete it
     const mergedFilePath = path.join(uploadPath, fileName);
     try {
       if (await fs.pathExists(mergedFilePath)) {
@@ -362,51 +292,13 @@ router.post('/upload/cleanup', async (req, res) => {
 // Serve uploaded files
 router.use('/uploads', express.static(uploadPath));
 
-// This function gets all available chunks for a filename
-async function getAvailableChunks(fileName) {
-  try {
-    const files = await fs.readdir(uploadPathChunks);
-    const chunkFiles = files.filter(file => file.startsWith(fileName));
-    
-    // Extract chunk numbers
-    return chunkFiles.map(file => {
-      const match = file.match(/\.part_(\d+)$/);
-      return match ? parseInt(match[1], 10) : -1;
-    }).filter(num => num !== -1);
-  } catch (error) {
-    console.error('Error getting available chunks:', error);
-    return [];
-  }
-}
-
-// Check if all chunks exist before merging (verifies specific sequence 0 to totalChunks-1)
-async function checkChunksBeforeMerging(fileName, totalChunks) {
-  console.log(`Verifying all ${totalChunks} chunks exist for ${fileName}`);
-  const missingChunks = [];
-  
-  for (let i = 0; i < totalChunks; i++) {
-    const chunkPath = path.join(uploadPathChunks, `${fileName}.part_${i}`);
-    try {
-      if (!await fs.pathExists(chunkPath)) {
-        console.error(`Missing chunk at index ${i}: ${chunkPath}`);
-        missingChunks.push(i);
-      }
-    } catch (err) {
-      console.error(`Error checking chunk ${i}:`, err);
-      missingChunks.push(i);
-    }
-  }
-  
-  return missingChunks;
-}
-
-// Function to merge chunks that are available (regardless of sequential numbering)
-async function mergeAvailableChunks(fileName, chunkIndices) {
+// Function to merge available chunks
+async function mergeChunks(fileName, chunkIndices) {
   if (chunkIndices.length === 0) {
     throw new Error('No chunks available to merge');
   }
   
-  console.log(`Starting to merge ${chunkIndices.length} available chunks for ${fileName}`);
+  console.log(`Starting to merge ${chunkIndices.length} chunks for ${fileName}`);
   const outputFilePath = path.join(uploadPath, fileName);
   const writeStream = fs.createWriteStream(outputFilePath);
   
@@ -414,36 +306,30 @@ async function mergeAvailableChunks(fileName, chunkIndices) {
     for (const chunkIndex of chunkIndices) {
       const chunkPath = path.join(uploadPathChunks, `${fileName}.part_${chunkIndex}`);
       
-      console.log(`Processing chunk with index ${chunkIndex} from ${chunkPath}`);
+      console.log(`Processing chunk ${chunkIndex} from ${chunkPath}`);
       
-      // Check if chunk exists
+      // Check if the chunk exists before trying to read it
       if (!await fs.pathExists(chunkPath)) {
         console.error(`Chunk file not found, skipping: ${chunkPath}`);
-        continue; // Skip this chunk and continue with the next one
+        continue; // Skip this chunk and continue with others
       }
       
+      // Read and write the chunk
+      await new Promise((resolve, reject) => {
+        const readStream = fs.createReadStream(chunkPath);
+        readStream.pipe(writeStream, { end: false });
+        readStream.on('end', resolve);
+        readStream.on('error', reject);
+      });
+      
+      console.log(`Chunk ${chunkIndex} merged successfully`);
+      
+      // Delete the chunk file after merging
       try {
-        // Use streams for better memory management
-        const chunkStream = fs.createReadStream(chunkPath);
-        await new Promise((resolve, reject) => {
-          chunkStream.pipe(writeStream, { end: false });
-          chunkStream.on('end', resolve);
-          chunkStream.on('error', reject);
-        });
-        
-        console.log(`Chunk ${chunkIndex} merged successfully`);
-        
-        // Delete the chunk file after it's been merged
-        try {
-          await fs.unlink(chunkPath);
-          console.log(`Chunk ${chunkIndex} deleted successfully`);
-        } catch (unlinkError) {
-          console.error(`Error deleting chunk ${chunkIndex}:`, unlinkError);
-          // Continue even if deletion fails
-        }
-      } catch (error) {
-        console.error(`Error processing chunk ${chunkIndex}:`, error);
-        // Continue with next chunk instead of failing the entire merge
+        await fs.unlink(chunkPath);
+        console.log(`Chunk ${chunkIndex} deleted successfully`);
+      } catch (unlinkError) {
+        console.error(`Error deleting chunk ${chunkIndex}:`, unlinkError);
       }
       
       // Free up memory periodically
@@ -451,8 +337,8 @@ async function mergeAvailableChunks(fileName, chunkIndices) {
         global.gc();
       }
     }
-
-    // Ensure all data is flushed to disk
+    
+    // End the write stream
     await new Promise((resolve, reject) => {
       writeStream.end(err => {
         if (err) reject(err);
@@ -460,95 +346,14 @@ async function mergeAvailableChunks(fileName, chunkIndices) {
       });
     });
     
-    console.log('All available chunks merged successfully');
+    console.log(`Successfully merged ${chunkIndices.length} chunks for ${fileName}`);
+    return outputFilePath;
   } catch (error) {
-    // Close the write stream if it's still open
+    // Close the write stream if there's an error
     writeStream.end();
-    console.error('Error during merge operation:', error);
+    console.error('Error during merge:', error);
     
-    // Clean up the partially created file if an error occurs
-    try {
-      if (await fs.pathExists(outputFilePath)) {
-        await fs.unlink(outputFilePath);
-        console.log('Cleaned up incomplete merged file');
-      }
-    } catch (cleanupError) {
-      console.error('Error cleaning up incomplete file:', cleanupError);
-    }
-    
-    throw error;
-  }
-}
-
-// Original merge function that expects sequential chunks
-async function mergeChunks(fileName, totalChunks) {
-  console.log(`Starting to merge ${totalChunks} chunks for ${fileName}`);
-  const outputFilePath = path.join(uploadPath, fileName);
-  const writeStream = fs.createWriteStream(outputFilePath);
-  
-  try {
-    for (let i = 0; i < totalChunks; i++) {
-      const chunkPath = path.join(uploadPathChunks, `${fileName}.part_${i}`);
-      
-      console.log(`Processing chunk ${i + 1}/${totalChunks} from ${chunkPath}`);
-      
-      // Double-check if chunk exists before attempting to read
-      if (!await fs.pathExists(chunkPath)) {
-        console.error(`Chunk file not found: ${chunkPath}`);
-        throw new Error(`Chunk file ${i} not found`);
-      }
-
-      try {
-        // Use streams for better memory management
-        const chunkStream = fs.createReadStream(chunkPath);
-        await new Promise((resolve, reject) => {
-          chunkStream.pipe(writeStream, { end: false });
-          chunkStream.on('end', resolve);
-          chunkStream.on('error', reject);
-        });
-        
-        console.log(`Chunk ${i} merged successfully`);
-        
-        // Don't delete chunks immediately to avoid race conditions
-        // with parallel uploads of the same file
-      } catch (error) {
-        console.error(`Error processing chunk ${i}:`, error);
-        throw error;
-      }
-      
-      // Free up memory periodically
-      if (i % 10 === 0 && global.gc) {
-        global.gc();
-      }
-    }
-
-    // Ensure all data is flushed to disk
-    await new Promise((resolve, reject) => {
-      writeStream.end(err => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
-    
-    console.log('All chunks merged successfully');
-    
-    // Only delete chunks after successful merge
-    for (let i = 0; i < totalChunks; i++) {
-      const chunkPath = path.join(uploadPathChunks, `${fileName}.part_${i}`);
-      try {
-        await fs.unlink(chunkPath);
-        console.log(`Chunk ${i} deleted successfully`);
-      } catch (unlinkError) {
-        console.error(`Error deleting chunk ${i}:`, unlinkError);
-        // Continue even if deletion fails
-      }
-    }
-  } catch (error) {
-    // Close the write stream if it's still open
-    writeStream.end();
-    console.error('Error during merge operation:', error);
-    
-    // Clean up the partially created file if an error occurs
+    // Clean up the partially merged file
     try {
       if (await fs.pathExists(outputFilePath)) {
         await fs.unlink(outputFilePath);
@@ -577,7 +382,6 @@ router.use((err, req, res, next) => {
           return;
         } 
     
-        // Iterate over the files and delete each one
         files.forEach(file => {
           const filePath = path.join(uploadPathChunks, file);
     
