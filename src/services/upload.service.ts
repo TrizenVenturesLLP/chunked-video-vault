@@ -45,12 +45,15 @@ export const uploadVideo = async (
       const chunk = file.slice(start, end);
       const formData = new FormData();
       
-      // Send important metadata with each chunk
+      // Send important metadata with each chunk - ensure chunk number is included
       formData.append("video", chunk, file.name);
       formData.append("chunk", chunkIndex.toString());
       formData.append("totalChunks", chunks.toString());
       formData.append("originalname", file.name);
       formData.append("mimeType", file.type);
+      
+      // Log the formData entries to verify chunk number is included
+      console.log(`Uploading chunk ${chunkIndex}/${chunks} with size ${(end-start)/1024/1024}MB`);
       
       // Update progress reasonably to avoid UI freezes
       const now = Date.now();
@@ -110,7 +113,7 @@ export const uploadVideo = async (
       }
     };
     
-    // Upload chunks with limited concurrency
+    // Upload chunks sequentially to ensure proper ordering
     const uploadChunks = async () => {
       // Start with first chunk for sequential processing
       await uploadChunk(0);

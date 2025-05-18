@@ -68,24 +68,25 @@ const sanitizeFilename = (filename) => {
   return filename.replace(/[^a-zA-Z0-9._-]/g, '_');
 };
 
-// Configure multer for chunk uploads
+// Configure multer for chunk uploads with improved error handling for missing chunk numbers
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, uploadPathChunks);
   },
   filename: (req, file, cb) => {
     try {
-      // Get the chunk number from request body
+      // Get the chunk number from request body with additional logging
       const chunkNumber = req.body.chunk;
-      const safeFilename = sanitizeFilename(file.originalname || req.body.originalname).replace(/\s+/g, '');
+      console.log('Request body for chunk upload:', req.body);
       
-      if (chunkNumber !== undefined) {
-        const fileName = `${safeFilename}.part_${chunkNumber}`;
-        console.log(`Creating filename for chunk: ${fileName}`);
-        cb(null, fileName);
-      } else {
-        cb(new Error('Chunk number not provided'));
+      if (chunkNumber === undefined) {
+        return cb(new Error('Chunk number not provided'));
       }
+      
+      const safeFilename = sanitizeFilename(file.originalname || req.body.originalname).replace(/\s+/g, '');
+      const fileName = `${safeFilename}.part_${chunkNumber}`;
+      console.log(`Creating filename for chunk: ${fileName}`);
+      cb(null, fileName);
     } catch (error) {
       console.error('Error in filename generation:', error);
       cb(error);
@@ -105,13 +106,22 @@ const upload = multer({
   },
 });
 
-// Handle chunk uploads
+// Handle chunk uploads with improved error handling
 router.post('/upload', upload.single('video'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No video file uploaded.' });
   }
 
   try {
+    // Additional validation to ensure chunk information exists
+    if (!req.body.chunk) {
+      return res.status(400).json({ error: 'Chunk number not provided.' });
+    }
+    
+    if (!req.body.totalChunks) {
+      return res.status(400).json({ error: 'Total chunks not provided.' });
+    }
+    
     const chunkNumber = parseInt(req.body.chunk || '0', 10);
     const totalChunks = parseInt(req.body.totalChunks || '1', 10);
     const fileName = sanitizeFilename(req.body.originalname).replace(/\s+/g, '');
@@ -311,7 +321,7 @@ async function mergeChunks(fileName, chunkIndices) {
       // Check if the chunk exists before trying to read it
       if (!await fs.pathExists(chunkPath)) {
         console.error(`Chunk file not found, skipping: ${chunkPath}`);
-        continue; // Skip this chunk and continue with others
+        throw new Error(`Chunk file ${chunkIndex} not found`);
       }
       
       // Read and write the chunk
