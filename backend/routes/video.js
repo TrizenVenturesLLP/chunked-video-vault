@@ -26,7 +26,7 @@ const minioClient = new Client({
 });
 
 // Ensure the bucket exists
-const bucketName = 'webdevbootcamp1';
+const bucketName = 'video-bucket';
 let minioAvailable = false;
 
 // Check MinIO connection status
