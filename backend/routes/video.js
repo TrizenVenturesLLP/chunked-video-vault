@@ -1,4 +1,3 @@
-
 import express from 'express';
 import multer from 'multer';
 import fs from 'fs-extra';
@@ -80,11 +79,39 @@ const storage = multer.diskStorage({
       const safeFilename = sanitizeFilename(file.originalname);
       const baseFileName = safeFilename.replace(/\s+/g, '');
       
-      // Use the actual chunk number from the request body
-      const chunkNumber = req.body.chunk || '0';
-      const fileName = `${baseFileName}.part_${chunkNumber}`;
-      console.log(`Creating filename for chunk: ${fileName}`);
-      cb(null, fileName);
+      fs.readdir(uploadPathChunks, (err, files) => {
+        if (err) {
+          return cb(err);
+        }
+  
+        // Get the chunk number from request body if provided
+        if (req.body.chunk !== undefined) {
+          const chunkNumber = req.body.chunk;
+          const fileName = `${baseFileName}.part_${chunkNumber}`;
+          console.log(`Creating filename for specified chunk: ${fileName}`);
+          cb(null, fileName);
+          return;
+        }
+  
+        // Otherwise, determine the next available chunk number
+        const matchingFiles = files.filter((f) => f.startsWith(baseFileName));
+  
+        let chunkNumber = 0;
+        if (matchingFiles.length > 0) {
+          // Extract the highest chunk number
+          const highestChunk = Math.max(
+            ...matchingFiles.map((f) => {
+              const match = f.match(/\.part_(\d+)$/);
+              return match ? parseInt(match[1], 10) : -1;
+            })
+          );
+          chunkNumber = highestChunk + 1;
+        }
+  
+        const fileName = `${baseFileName}.part_${chunkNumber}`;
+        console.log(`Creating filename for chunk: ${fileName}`);
+        cb(null, fileName);
+      });
     } catch (error) {
       console.error('Error in filename generation:', error);
       cb(error);
@@ -94,7 +121,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // Reduced to 50MB limit per chunk
+  limits: { fileSize: 500 * 1024 * 1024 }, // 500MB limit per chunk
   fileFilter: (req, file, cb) => {
     if (
       file.mimetype.startsWith('video/') ||
@@ -117,35 +144,46 @@ router.post('/upload', upload.single('video'), async (req, res) => {
     const chunkNumber = parseInt(req.body.chunk || '0', 10);
     const totalChunks = parseInt(req.body.totalChunks || '1', 10);
     const fileName = sanitizeFilename(req.body.originalname).replace(/\s+/g, '');
-    const chunkSize = parseInt(req.body.chunkSize || '0', 10);
 
-    // Log upload progress with more details
     console.log(`Processing chunk ${chunkNumber + 1}/${totalChunks} of ${fileName}`);
     console.log(`Saved chunk file: ${req.file.path}`);
     
-    // Check file size and disk space
-    try {
-      const stats = await fs.stat(req.file.path);
-      console.log(`Chunk size: ${stats.size} bytes`);
-    } catch (statErr) {
-      console.error(`Error checking chunk file stats: ${statErr.message}`);
+    // If this is the last chunk, merge all chunks
+    if (chunkNumber === totalChunks - 1) {
+      try {
+        await mergeChunks(fileName, totalChunks);
+        console.log(`All chunks merged for ${fileName}`);
+      } catch (mergeError) {
+        console.error('Error merging chunks:', mergeError);
+        return res.status(500).json({ error: `Error merging chunks: ${mergeError.message}` });
+      }
     }
 
-    // Return simple success response for individual chunks
-    const baseURL = `https://lmsbackendminio-api.llp.trizenventures.com/${bucketName}/`;
+    // Return success response
+    const baseURL = minioAvailable 
+      ? `https://lmsbackendminio-api.llp.trizenventures.com/${bucketName}/` 
+      : `http://${req.get('host')}/uploads/`;
     
+    const videoUrl = minioAvailable
+      ? `${baseURL}${fileName}`
+      : `http://${req.get('host')}/uploads/${fileName}`;
+    
+    const fileInfo = {
+      filename: fileName,
+      originalName: req.body.originalname,
+      size: req.file.size,
+      mimetype: req.file.mimetype,
+      baseURL: baseURL,
+      videoUrl: videoUrl,
+      storageMode: minioAvailable ? 'cloud' : 'local',
+      usingFallback: !minioAvailable
+    };
+
     res.status(200).json({
-      message: 'Chunk uploaded successfully',
-      chunkNumber: chunkNumber,
-      totalChunks: totalChunks,
-      file: {
-        filename: fileName,
-        originalName: req.body.originalname,
-        size: req.file.size,
-        mimetype: req.file.mimetype,
-        baseURL: baseURL,
-        videoUrl: ''
-      }
+      message: chunkNumber === totalChunks - 1 
+        ? 'All chunks uploaded and merged successfully' 
+        : 'Chunk uploaded successfully',
+      file: fileInfo,
     });
   } catch (error) {
     console.error('Error during file upload:', error);
@@ -153,7 +191,7 @@ router.post('/upload', upload.single('video'), async (req, res) => {
   }
 });
 
-// New finalization endpoint
+// Keep upload/finalize endpoint for backward compatibility
 router.post('/upload/finalize', async (req, res) => {
   try {
     const totalChunks = parseInt(req.body.totalChunks || '1', 10);
@@ -177,103 +215,12 @@ router.post('/upload/finalize', async (req, res) => {
     await mergeChunks(fileName, totalChunks);
     console.log(`All chunks merged for ${fileName}`);
     
-    // Setup variables for storing upload status
-    let uploadedToCloud = false;
-    let videoUrl = '';
-    let storageMode = 'local';
-    const localVideoUrl = `http://${req.get('host')}/uploads/${fileName}`;
+    const videoUrl = `http://${req.get('host')}/uploads/${fileName}`;
     const baseURL = `https://lmsbackendminio-api.llp.trizenventures.com/${bucketName}/`;
     
-    // Only attempt cloud upload if MinIO is available
-    if (minioAvailable) {
-      try {
-        console.log(`Attempting to upload ${fileName} to MinIO bucket ${bucketName}`);
-        const filePath = path.join(uploadPath, fileName);
-        
-        if (fs.existsSync(filePath)) {
-          // Try direct file upload with timeout
-          try {
-            const UPLOAD_TIMEOUT = 30000; // 30 seconds timeout
-            const uploadPromise = minioClient.fPutObject(bucketName, fileName, filePath);
-            
-            // Create a timeout promise
-            const timeoutPromise = new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('MinIO upload timeout')), UPLOAD_TIMEOUT)
-            );
-            
-            // Race the upload against the timeout
-            await Promise.race([uploadPromise, timeoutPromise]);
-            uploadedToCloud = true;
-            storageMode = 'cloud';
-            console.log(`File ${fileName} uploaded to MinIO successfully`);
-          } catch (uploadError) {
-            console.error('MinIO fPutObject error:', uploadError);
-            
-            // Fall back to smaller chunks for upload if file is large
-            try {
-              const fileStats = await fs.stat(filePath);
-              if (fileStats.size < 5 * 1024 * 1024) { // For small files (<5MB)
-                const fileContent = await fs.readFile(filePath);
-                await minioClient.putObject(bucketName, fileName, fileContent);
-                uploadedToCloud = true;
-                storageMode = 'cloud';
-                console.log(`Small file ${fileName} uploaded to MinIO successfully`);
-              } else {
-                throw new Error('File too large for small file method');
-              }
-            } catch (smallFileError) {
-              console.error('MinIO upload timed out or failed:', smallFileError);
-              throw smallFileError;
-            }
-          }
-        } else {
-          throw new Error(`File not found at ${filePath}`);
-        }
-        
-        // Generate a presigned URL if upload was successful
-        if (uploadedToCloud) {
-          try {
-            videoUrl = await minioClient.presignedGetObject(bucketName, fileName, 24 * 60 * 60); // 24 hour expiry
-            console.log('Generated presigned URL');
-          } catch (urlError) {
-            console.error('Error generating presigned URL:', urlError);
-            videoUrl = `${baseURL}${fileName}`;
-            console.log('Using fallback URL:', videoUrl);
-          }
-        }
-      } catch (minioError) {
-        console.error('Error uploading to MinIO:', minioError);
-        uploadedToCloud = false;
-      }
-    } else {
-      console.log('MinIO is not available, using local storage');
-    }
-    
-    // If cloud upload failed, use local storage fallback
-    if (!uploadedToCloud) {
-      console.log('Using local storage fallback');
-      videoUrl = localVideoUrl;
-      
-      return res.status(200).json({
-        message: 'File processed but cloud storage unavailable. Using local storage.',
-        storageMode: 'local',
-        file: {
-          filename: fileName,
-          originalName: req.body.originalname,
-          size: 0, // We don't have this info in the finalize request
-          mimetype: 'video/mp4',
-          baseURL: baseURL,
-          videoUrl: videoUrl,
-          usingFallback: true,
-          storageMode: 'local'
-        }
-      });
-    }
-    
-    // Successful cloud upload response
     return res.status(200).json({
-      message: 'File uploaded to cloud storage successfully',
-      storageMode: 'cloud',
+      message: 'File processed successfully',
+      storageMode: 'local',
       file: {
         filename: fileName,
         originalName: req.body.originalname,
@@ -281,8 +228,8 @@ router.post('/upload/finalize', async (req, res) => {
         mimetype: 'video/mp4',
         baseURL: baseURL,
         videoUrl: videoUrl,
-        usingFallback: false,
-        storageMode: 'cloud'
+        usingFallback: true,
+        storageMode: 'local'
       }
     });
   } catch (error) {
@@ -372,78 +319,59 @@ async function mergeChunks(fileName, totalChunks) {
   const writeStream = fs.createWriteStream(outputFilePath);
   
   try {
-    // To avoid memory issues, process chunks in small batches
-    const BATCH_SIZE = 10;
-    const totalBatches = Math.ceil(totalChunks / BATCH_SIZE);
-    
-    for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
-      console.log(`Processing batch ${batchIndex + 1}/${totalBatches}`);
-      const startChunk = batchIndex * BATCH_SIZE;
-      const endChunk = Math.min((batchIndex + 1) * BATCH_SIZE, totalChunks);
+    for (let i = 0; i < totalChunks; i++) {
+      const chunkPath = path.join(uploadPathChunks, `${fileName}.part_${i}`);
+      let retries = 0;
+
+      console.log(`Processing chunk ${i + 1}/${totalChunks} from ${chunkPath}`);
       
-      for (let i = startChunk; i < endChunk; i++) {
-        const chunkPath = path.join(uploadPathChunks, `${fileName}.part_${i}`);
-        let retries = 0;
+      // Double-check if chunk exists before attempting to read
+      if (!await fs.pathExists(chunkPath)) {
+        console.error(`Chunk file not found: ${chunkPath}`);
+        throw new Error(`Chunk file ${i} not found`);
+      }
 
-        console.log(`Processing chunk ${i + 1}/${totalChunks} from ${chunkPath}`);
-        
-        // Double-check if chunk exists before attempting to read
-        if (!await fs.pathExists(chunkPath)) {
-          console.error(`Chunk file not found: ${chunkPath}`);
-          throw new Error(`Chunk file ${i} not found`);
-        }
-
-        while (retries < MAX_RETRIES) {
+      while (retries < MAX_RETRIES) {
+        try {
+          // Use streams for better memory management
+          const chunkStream = fs.createReadStream(chunkPath);
+          await new Promise((resolve, reject) => {
+            chunkStream.pipe(writeStream, { end: false });
+            chunkStream.on('end', resolve);
+            chunkStream.on('error', reject);
+          });
+          
+          console.log(`Chunk ${i} merged successfully`);
+          
+          // Delete the chunk file after it's been merged
           try {
-            // Read the chunk data
-            const chunkData = await fs.readFile(chunkPath);
-            console.log(`Successfully read chunk ${i}, size: ${chunkData.length} bytes`);
-            
-            // Write the chunk data to the output file
-            await new Promise((resolve, reject) => {
-              writeStream.write(chunkData, (err) => {
-                if (err) reject(err);
-                else resolve();
-              });
-            });
-            
-            console.log(`Chunk ${i} merged successfully`);
-            
-            // Delete the chunk file after it's been merged
-            try {
-              await fs.unlink(chunkPath);
-              console.log(`Chunk ${i} deleted successfully`);
-            } catch (unlinkError) {
-              console.error(`Error deleting chunk ${i}:`, unlinkError);
-              // Continue even if deletion fails
-            }
-            
-            break; // Success, move to next chunk
-          } catch (error) {
-            if (error.code === 'EBUSY') {
-              console.log(`Chunk ${i} is busy, retrying... (${retries + 1}/${MAX_RETRIES})`);
-              await delay(RETRY_DELAY);
-              retries++;
-            } else {
-              console.error(`Error processing chunk ${i}:`, error);
-              throw error; // Unexpected error, rethrow
-            }
+            await fs.unlink(chunkPath);
+            console.log(`Chunk ${i} deleted successfully`);
+          } catch (unlinkError) {
+            console.error(`Error deleting chunk ${i}:`, unlinkError);
+            // Continue even if deletion fails
+          }
+          
+          break; // Success, move to next chunk
+        } catch (error) {
+          if (error.code === 'EBUSY') {
+            console.log(`Chunk ${i} is busy, retrying... (${retries + 1}/${MAX_RETRIES})`);
+            await delay(RETRY_DELAY);
+            retries++;
+          } else {
+            console.error(`Error processing chunk ${i}:`, error);
+            throw error; // Unexpected error, rethrow
           }
         }
+      }
 
-        if (retries === MAX_RETRIES) {
-          console.error(`Failed to merge chunk ${i} after ${MAX_RETRIES} retries`);
-          throw new Error(`Failed to merge chunk ${i} after multiple attempts`);
-        }
-        
-        // Free up memory after processing each chunk
-        if (global.gc) {
-          global.gc();
-        }
+      if (retries === MAX_RETRIES) {
+        console.error(`Failed to merge chunk ${i} after ${MAX_RETRIES} retries`);
+        throw new Error(`Failed to merge chunk ${i} after multiple attempts`);
       }
       
-      // Force garbage collection between batches if available
-      if (global.gc) {
+      // Free up memory periodically
+      if (i % 10 === 0 && global.gc) {
         global.gc();
       }
     }
