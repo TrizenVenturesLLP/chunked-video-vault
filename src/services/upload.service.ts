@@ -21,7 +21,7 @@ export const uploadVideo = async (
   onComplete: UploadCompleteCallback,
   onError: UploadErrorCallback
 ) => {
-  const chunkSize = 10 * 1024 * 1024; // 10MB chunks
+  const chunkSize = 5 * 1024 * 1024; // 10MB chunks
   const chunks = Math.ceil(file.size / chunkSize);
   
   try {

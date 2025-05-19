@@ -1,10 +1,10 @@
-
 import express from 'express';
 import multer from 'multer';
 import fs from 'fs-extra';
 import path from 'path';
 import { Client } from 'minio';
 import dotenv from 'dotenv';
+import { Readable } from 'stream';
 
 dotenv.config();
 
@@ -19,9 +19,7 @@ await fs.mkdir(uploadPathChunks, { recursive: true });
 console.log('Upload path:', uploadPath);
 console.log('Chunk path:', uploadPathChunks);
 
-
-// Setup MinIO client with better error handling
-// Setup MinIO client with better error handling
+// Setup MinIO client configuration
 const minioClient = new Client({
   endPoint: 'lmsbackendminio-api.llp.trizenventures.com', // Fixed endpoint
   port: 443,
@@ -29,7 +27,11 @@ const minioClient = new Client({
   accessKey: process.env.MINIO_ACCESS_KEY || 'b72084650d4c21dd04b801f0',
   secretKey: process.env.MINIO_SECRET_KEY || 'be2339a15ee0544de0796942ba3a85224cc635',
   region: 'us-east-1',
-  pathStyle: true
+  pathStyle: true,
+  // Additional configuration to improve stability
+  connectTimeoutMS: 30000, // 30 seconds
+  partSize: 10 * 1024 * 1024, // 10MB part size for multipart uploads
+  maxWorkers: 10,
 });
 
 async function verifyMinioConfig() {
@@ -105,7 +107,6 @@ minioClient.bucketExists(bucketName)
       statusCode: err.statusCode
     });
   });
-// Configure MinIO connection timeout
 
 // Check MinIO connection at startup with detailed error reporting
 (async function checkMinioConnection() {
@@ -268,6 +269,16 @@ router.post('/upload', upload.single('video'), async (req, res) => {
 
                     console.log('Upload completed successfully');
                     videoUrl = `https://${minioClient.endPoint}/${bucketName}/${fileName}`;
+                    
+                    // Delete the local file after successful upload to MinIO
+                    try {
+                      await fs.unlink(filePath);
+                      console.log(`Successfully deleted local file: ${filePath}`);
+                    } catch (deleteError) {
+                      console.error(`Error deleting local file ${filePath}:`, deleteError);
+                      // Continue even if delete fails - don't fail the upload
+                    }
+                    
                   } catch (uploadError) {
                     console.error('MinIO Upload Error:', {
                       name: uploadError.name,
@@ -409,6 +420,31 @@ async function mergeChunks(fileName, totalChunks) {
   writeStream.end();
   console.log('All chunks merged successfully');
 }
+
+// Add function to clean up any existing files in the uploads directory
+async function cleanupExistingFiles() {
+  try {
+    console.log('Cleaning up any existing files in the uploads directory');
+    const files = await fs.readdir(uploadPath);
+    
+    for (const file of files) {
+      try {
+        const filePath = path.join(uploadPath, file);
+        await fs.unlink(filePath);
+        console.log(`Deleted existing file: ${filePath}`);
+      } catch (err) {
+        console.error(`Error deleting file ${file}:`, err);
+      }
+    }
+    
+    console.log('Uploads directory cleanup completed');
+  } catch (err) {
+    console.error('Error cleaning up uploads directory:', err);
+  }
+}
+
+// Clean up all existing files in uploads directory on server start
+cleanupExistingFiles();
 
 router.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {

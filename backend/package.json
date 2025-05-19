@@ -16,7 +16,7 @@
     "express": "^4.18.2",
     "fs-extra": "^11.3.0",
     "jsonwebtoken": "^9.0.2",
-    "minio": "^8.0.5",
+    "minio": "^7.0.28",
     "minip": "^1.0.1",
     "mongoose": "^8.15.0",
     "morgan": "^1.10.0",
