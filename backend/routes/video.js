@@ -16,18 +16,96 @@ const uploadPathChunks = path.join(process.cwd(), 'chunks');
 await fs.mkdir(uploadPath, { recursive: true });
 await fs.mkdir(uploadPathChunks, { recursive: true });
 
+console.log('Upload path:', uploadPath);
+console.log('Chunk path:', uploadPathChunks);
+
+
+// Setup MinIO client with better error handling
 // Setup MinIO client with better error handling
 const minioClient = new Client({
-  endPoint: process.env.MINIO_ENDPOINT || 'localhost',
-  port: parseInt(process.env.MINIO_PORT) || 9000,
-  useSSL: process.env.MINIO_USE_SSL === 'true',
-  accessKey: process.env.MINIO_ACCESS_KEY || 'minioadmin',
-  secretKey: process.env.MINIO_SECRET_KEY || 'minioadmin'
+  endPoint: 'lmsbackendminio-api.llp.trizenventures.com', // Fixed endpoint
+  port: 443,
+  useSSL: true,
+  accessKey: process.env.MINIO_ACCESS_KEY || 'b72084650d4c21dd04b801f0',
+  secretKey: process.env.MINIO_SECRET_KEY || 'be2339a15ee0544de0796942ba3a85224cc635',
+  region: 'us-east-1',
+  pathStyle: true
 });
 
-// Configure MinIO connection timeout
+async function verifyMinioConfig() {
+  try {
+    console.log('Verifying MinIO configuration...');
+    
+    // Add debug logging
+    console.log('Raw MinIO client:', {
+      endPoint: minioClient.endPoint,
+      port: minioClient.port,
+      useSSL: minioClient.useSSL,
+      region: minioClient.region,
+      accessKey: minioClient.accessKey?.substring(0, 5) + '...'
+    });
+
+    if (!minioClient.endPoint) {
+      throw new Error('Missing MinIO endpoint');
+    }
+    if (!minioClient.port) {
+      throw new Error('Missing MinIO port');
+    }
+    if (typeof minioClient.useSSL !== 'boolean') {
+      throw new Error('Invalid SSL configuration');
+    }
+    if (!minioClient.accessKey || !minioClient.secretKey) {
+      throw new Error('Missing MinIO credentials');
+    }
+
+    // Test connection
+    await Promise.race([
+      minioClient.bucketExists(bucketName),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('MinIO connection timeout')), 5000)
+      )
+    ]);
+
+    console.log('MinIO configuration verified successfully');
+    return true;
+  } catch (error) {
+    console.error('MinIO configuration error:', error);
+    return false;
+  }
+}
+
+console.log("*****************",minioClient);
+
 let minioAvailable = false;
-const bucketName = process.env.MINIO_BUCKET || 'video-bucket';
+const bucketName = 'webdevbootcamp1';
+minioClient.endPoint = 'lmsbackendminio.llp.trizenventures.com';
+const port = 443;
+minioClient.useSSL = true;
+minioClient.accessKey = 'b72084650d4c21dd04b801f0';
+minioClient.secretKey = 'be2339a15ee0544de0796942ba3a85224cc635';
+
+// Replace the existing bucket check with this:
+minioClient.bucketExists(bucketName)
+  .then(exists => {
+    if (!exists) {
+      console.log(`Bucket ${bucketName} does NOT exist!`);
+      return minioClient.makeBucket(bucketName);
+    }
+    console.log(`Bucket ${bucketName} exists!`);
+  })
+  .then(() => {
+    console.log('Bucket check/creation completed successfully');
+  })
+  .catch(err => {
+    console.error('Bucket operation failed:', err);
+    console.error('Error details:', {
+      name: err.name,
+      message: err.message,
+      code: err.code,
+      statusCode: err.statusCode
+    });
+  });
+// Configure MinIO connection timeout
 
 // Check MinIO connection at startup with detailed error reporting
 (async function checkMinioConnection() {
@@ -57,7 +135,7 @@ const bucketName = process.env.MINIO_BUCKET || 'video-bucket';
             {
               Effect: 'Allow',
               Principal: { AWS: ['*'] },
-              Action: ['s3:GetObject'],
+              Action: ['s3:GetObject', 's3:PutObject'],
               Resource: [`arn:aws:s3:::${bucketName}/*`]
             }
           ]
@@ -153,21 +231,70 @@ router.post('/upload', upload.single('video'), async (req, res) => {
         
         // Only try MinIO upload if it was available at startup or we need to check again
         if (minioAvailable) {
+          minioAvailable = await verifyMinioConfig();
           try {
             console.log(`Uploading ${filePath} to MinIO bucket ${bucketName}`);
             
             // Try to upload to MinIO with a timeout
-            await Promise.race([
-              minioClient.fPutObject(bucketName, fileName, filePath),
-              new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('MinIO upload timeout')), 30000)
-              )
-            ]);
+            try {
+                    minioClient.endpoint = 'lmsbackendminio-api.llp.trizenventures.com';
+
+                    // Log attempt with full config
+                    const uploadConfig = {
+                      bucket: bucketName,
+                      file: fileName,
+                      endpoint: minioClient.endPoint,
+                      port: minioClient.port,
+                      useSSL: minioClient.useSSL,
+                      pathStyle: minioClient.pathStyle
+                    };
+                    console.log('Attempting MinIO upload with config:', uploadConfig);
+
+                    // Verify file exists
+                    const fileExists = await fs.pathExists(filePath);
+                    if (!fileExists) {
+                      throw new Error(`File not found at path: ${filePath}`);
+                    }
+
+                    // Attempt upload with timeout
+                    await Promise.race([
+                      minioClient.fPutObject(bucketName, fileName, filePath, {
+                        'Content-Type': 'video/mp4',
+                      }),
+                      new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error('MinIO upload timeout')), 300000)
+                      ),
+                    ]);
+
+                    console.log('Upload completed successfully');
+                    videoUrl = `https://${minioClient.endPoint}/${bucketName}/${fileName}`;
+                  } catch (uploadError) {
+                    console.error('MinIO Upload Error:', {
+                      name: uploadError.name,
+                      message: uploadError.message,
+                      code: uploadError.code,
+                      statusCode: uploadError.statusCode,
+                      stack: uploadError.stack,
+                      endpoint: minioClient.endPoint,
+                      bucket: bucketName
+                    });
+                    minioAvailable = false;
+                    usingFallback = true;
+                    // Use a safe fallback URL
+                    const protocol = minioClient.endPoint?.includes('localhost') ? 'http' : 'https';
+                    videoUrl = `${protocol}://${minioClient.endPoint || 'localhost:9000'}/${bucketName}/${fileName}`;
+                    console.log('Using fallback URL:', videoUrl);
+                  }
             
             console.log(`File ${fileName} uploaded to MinIO successfully`);
             
             // Generate a presigned URL for the uploaded video
-            videoUrl = await minioClient.presignedGetObject(bucketName, fileName, 24 * 60 * 60);
+            // Update fallback URL to use HTTPS
+          // Replace the videoUrl generation in the catch block
+          videoUrl = minioClient.endPoint 
+            ? `https://${minioClient.endPoint}/${bucketName}/${fileName}`
+            : `http://localhost:9000/${bucketName}/${fileName}`;
+          console.log('Using fallback URL:', videoUrl);
           } catch (minioError) {
             console.error('Error uploading to MinIO:', minioError);
             minioAvailable = false;
