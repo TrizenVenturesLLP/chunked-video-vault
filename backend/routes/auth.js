@@ -1,14 +1,33 @@
-
 import express from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import dotenv from 'dotenv';
+import cors from 'cors';
+import { uploadProfilePicture, handleMulterError } from '../middleware/uploadMiddleware.js';
+import { uploadProfilePicture as uploadToMinio } from '../utils/minioClient.js';
 
 dotenv.config();
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+
+// CORS configuration for auth routes
+const corsOptions = {
+  // origin: 'https://instructor.lms.trizenventures.com',
+  origin: '*',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
+};
+
+// Apply CORS specifically for auth routes
+router.use(cors(corsOptions));
+
+// Handle OPTIONS preflight requests
+router.options('*', cors(corsOptions));
 
 // Authentication middleware
 export const authenticate = (req, res, next) => {
@@ -62,6 +81,11 @@ router.post('/login', async (req, res) => {
       JWT_SECRET,
       { expiresIn: '1d' }
     );
+
+    // Set CORS headers explicitly for this response
+    // res.header('Access-Control-Allow-Origin', 'https://instructor.lms.trizenventures.com');
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Credentials', 'true');
 
     res.json({
       token,
@@ -236,6 +260,41 @@ router.get('/me', authenticate, async (req, res) => {
     console.error('Get user error:', error);
     res.status(500).json({ message: 'Server error' });
   }
+});
+
+// Profile picture upload route
+router.post('/upload-profile-picture', authenticate, uploadProfilePicture, handleMulterError, async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ message: 'No file uploaded' });
+        }
+
+        const userId = req.user.id;
+        const file = req.file;
+
+        // Upload to MinIO and get the complete URL
+        const profilePictureUrl = await uploadToMinio(file, file.originalname);
+        console.log('Profile picture URL:', profilePictureUrl); // Debug log
+
+        // Update user's profile picture in database
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            { profilePicture: profilePictureUrl },
+            { new: true }
+        );
+
+        if (!updatedUser) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        res.json({
+            message: 'Profile picture uploaded successfully',
+            profilePicture: profilePictureUrl
+        });
+    } catch (error) {
+        console.error('Profile picture upload error:', error);
+        res.status(500).json({ message: 'Failed to upload profile picture' });
+    }
 });
 
 export default router;

@@ -195,7 +195,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 1000 * 1024 * 1024 }, // 1000MB limit
+  limits: { fileSize: 5000 * 1024 * 1024 }, // 5000MB limit
   fileFilter: (req, file, cb) => {
     if (
       file.mimetype.startsWith('video/') ||
@@ -268,7 +268,7 @@ router.post('/upload', upload.single('video'), async (req, res) => {
                     ]);
 
                     console.log('Upload completed successfully');
-                    videoUrl = `https://${minioClient.endPoint}/${bucketName}/${fileName}`;
+                    videoUrl = `https://lmsbackendminio-api.llp.trizenventures.com/${bucketName}/${fileName}`;
                     
                     // Delete the local file after successful upload to MinIO
                     try {
@@ -293,7 +293,7 @@ router.post('/upload', upload.single('video'), async (req, res) => {
                     usingFallback = true;
                     // Use a safe fallback URL
                     const protocol = minioClient.endPoint?.includes('localhost') ? 'http' : 'https';
-                    videoUrl = `${protocol}://${minioClient.endPoint || 'localhost:9000'}/${bucketName}/${fileName}`;
+                    videoUrl = `${protocol}://lmsbackendminio-api.llp.trizenventures.com/${bucketName}/${fileName}`;
                     console.log('Using fallback URL:', videoUrl);
                   }
             
@@ -303,7 +303,7 @@ router.post('/upload', upload.single('video'), async (req, res) => {
             // Update fallback URL to use HTTPS
           // Replace the videoUrl generation in the catch block
           videoUrl = minioClient.endPoint 
-            ? `https://${minioClient.endPoint}/${bucketName}/${fileName}`
+            ? `https://lmsbackendminio-api.llp.trizenventures.com/${bucketName}/${fileName}`
             : `http://localhost:9000/${bucketName}/${fileName}`;
           console.log('Using fallback URL:', videoUrl);
           } catch (minioError) {
