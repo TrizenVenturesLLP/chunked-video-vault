@@ -195,12 +195,13 @@ const InstructorLanding = () => {
               </div>
             </div>
             <div className="hidden lg:block">
-              <div className="flex justify-center">
+              <div className="relative">
                 <img 
                   src="/lovable-uploads/0e655f42-e700-4cb1-a43c-aa20a2367714.png" 
                   alt="Confident teacher ready to teach online" 
-                  className="w-3/4 h-auto"
+                  className="w-full h-auto rounded-2xl shadow-2xl"
                 />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-2xl"></div>
               </div>
             </div>
           </div>
