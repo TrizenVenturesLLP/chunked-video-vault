@@ -213,7 +213,7 @@ const InstructorLanding = () => {
       </header>
 
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-[#3F2B96] to-[#5b44ad] text-white py-6 sm:py-8 lg:py-10">
+      <section className="bg-gradient-to-br from-[#3F2B96] to-[#5b44ad] text-white py-3 sm:py-4 lg:py-5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
             <div className="text-center lg:text-left">
