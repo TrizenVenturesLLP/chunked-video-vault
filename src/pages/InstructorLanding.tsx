@@ -187,9 +187,8 @@ const InstructorLanding = () => {
                 </Button>
                 <Button 
                   size="lg"
-                  variant="outline"
                   onClick={() => navigate('/login')}
-                  className="border-white text-white hover:bg-white hover:text-[#3F2B96] text-lg px-8 py-4"
+                  className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-[#3F2B96] text-lg px-8 py-4"
                 >
                   Login
                 </Button>
