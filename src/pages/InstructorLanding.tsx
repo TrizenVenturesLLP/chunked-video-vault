@@ -121,7 +121,7 @@ const InstructorLanding = () => {
               <img 
                 src="/lovable-uploads/feba2167-456e-4e3d-b943-30361d3be552.png" 
                 alt="Trizen Logo" 
-                className="h-8 w-auto"
+                className="h-20 w-auto"
               />
             </div>
             <div className="flex items-center space-x-4">
