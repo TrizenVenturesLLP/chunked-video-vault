@@ -1,7 +1,9 @@
+
 import React from 'react';
 import { Routes, Route, BrowserRouter, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import InstructorLanding from './pages/InstructorLanding';
 import Login from './pages/Login';
 import InstructorSignup from './pages/InstructorSignup';
 import InstructorLayout from './pages/InstructorLayout';
@@ -28,7 +30,7 @@ const InstructorRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <div>Loading...</div>; // Or a spinner
+    return <div>Loading...</div>;
   }
 
   if (!user) {
@@ -48,8 +50,8 @@ const App = () => {
       <AuthProvider>
         <QueryClientProvider client={queryClient}>
           <Routes>
-            {/* Make login the default root page */}
-            <Route path="/" element={<Navigate to="/login" />} />
+            {/* Landing page as root */}
+            <Route path="/" element={<InstructorLanding />} />
             <Route path="/login" element={<Login />} />
             <Route path="/instructor-signup" element={<InstructorSignup />} />
             <Route path="/pending-approval" element={<PendingApproval />} />
