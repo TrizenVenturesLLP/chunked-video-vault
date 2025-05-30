@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -216,39 +215,39 @@ const InstructorLanding = () => {
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-[#3F2B96] to-[#5b44ad] text-white py-3 sm:py-4 lg:py-5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 gap-4 sm:gap-8 lg:gap-12 items-center">
-            <div className="text-left">
-              <h1 className="text-2xl sm:text-4xl lg:text-6xl font-bold leading-tight mb-3 sm:mb-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+            <div className="text-center lg:text-left">
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-6">
                 Teach the World<br />
                 <span className="text-blue-200 bg-gradient-to-r from-blue-200 to-white bg-clip-text text-transparent">Earn on Your Terms.</span>
               </h1>
-              <p className="text-sm sm:text-lg lg:text-xl mb-4 sm:mb-8 text-blue-100 leading-relaxed">
+              <p className="text-lg sm:text-xl mb-8 text-blue-100 leading-relaxed max-w-2xl mx-auto lg:mx-0">
                 Join thousands of educators creating impactful online courses and building sustainable income streams through teaching.
               </p>
-              <div className="flex flex-col gap-2 sm:gap-4">
+              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                 <Button 
                   size="lg"
                   onClick={() => navigate('/instructor-signup')}
-                  className="bg-white text-[#3F2B96] hover:bg-gray-100 text-xs sm:text-base lg:text-lg px-3 sm:px-6 lg:px-8 py-2 sm:py-3 lg:py-4 font-semibold shadow-lg transform hover:scale-105 transition-all duration-200"
+                  className="bg-white text-[#3F2B96] hover:bg-gray-100 text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 font-semibold shadow-lg transform hover:scale-105 transition-all duration-200"
                 >
                   Start Teaching Today
-                  <ArrowRight className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4 lg:h-5 lg:w-5" />
+                  <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5" />
                 </Button>
                 <Button 
                   size="lg"
                   onClick={() => navigate('/login')}
-                  className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-[#3F2B96] text-xs sm:text-base lg:text-lg px-3 sm:px-6 lg:px-8 py-2 sm:py-3 lg:py-4 font-semibold transition-all duration-200"
+                  className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-[#3F2B96] text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 font-semibold transition-all duration-200"
                 >
                   Login
                 </Button>
               </div>
             </div>
-            <div className="flex justify-center">
-              <div className="relative">
+            <div className="order-first lg:order-last">
+              <div className="relative max-w-md mx-auto lg:max-w-none">
                 <img 
                   src="/lovable-uploads/0e655f42-e700-4cb1-a43c-aa20a2367714.png" 
                   alt="Confident teacher ready to teach online" 
-                  className="w-full h-auto max-w-[120px] sm:max-w-[200px] lg:max-w-md"
+                  className="w-full h-auto"
                 />
               </div>
             </div>
