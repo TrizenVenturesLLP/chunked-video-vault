@@ -195,25 +195,13 @@ const InstructorLanding = () => {
               </div>
             </div>
             <div className="hidden lg:block">
-              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8">
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="text-center">
-                    <div className="text-3xl font-bold">50K+</div>
-                    <div className="text-blue-200">Active Students</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-3xl font-bold">1,200+</div>
-                    <div className="text-blue-200">Expert Instructors</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-3xl font-bold">95%</div>
-                    <div className="text-blue-200">Satisfaction Rate</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-3xl font-bold">$2M+</div>
-                    <div className="text-blue-200">Instructor Earnings</div>
-                  </div>
-                </div>
+              <div className="relative">
+                <img 
+                  src="/lovable-uploads/0e655f42-e700-4cb1-a43c-aa20a2367714.png" 
+                  alt="Confident teacher ready to teach online" 
+                  className="w-full h-auto rounded-2xl shadow-2xl"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-2xl"></div>
               </div>
             </div>
           </div>
