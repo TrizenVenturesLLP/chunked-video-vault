@@ -123,8 +123,8 @@ const InstructorLanding = () => {
       {/* Header */}
       <header className="bg-white border-b border-gray-100 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
+          <div className="flex items-center h-16">
+            <div className="flex items-center mr-8">
               <img 
                 src="/lovable-uploads/feba2167-456e-4e3d-b943-30361d3be552.png" 
                 alt="Trizen Logo" 
@@ -133,7 +133,7 @@ const InstructorLanding = () => {
             </div>
             
             {/* Navigation Menu */}
-            <nav className="hidden md:flex items-center space-x-8">
+            <nav className="hidden md:flex items-center space-x-8 flex-1">
               {navItems.map((item) => (
                 <a
                   key={item.name}
