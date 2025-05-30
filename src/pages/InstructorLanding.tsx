@@ -133,7 +133,7 @@ const InstructorLanding = () => {
             </div>
             
             {/* Navigation Menu */}
-            <nav className="hidden md:flex items-center space-x-8 flex-1">
+            <nav className="hidden md:flex items-center space-x-8">
               {navItems.map((item) => (
                 <a
                   key={item.name}
@@ -145,7 +145,7 @@ const InstructorLanding = () => {
               ))}
             </nav>
             
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-4 ml-auto">
               <Button 
                 variant="ghost" 
                 onClick={() => navigate('/login')}
@@ -170,8 +170,8 @@ const InstructorLanding = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
               <h1 className="text-6xl font-bold mb-6 leading-tight">
-                Teach the World<br />
-                <span className="text-blue-200 bg-gradient-to-r from-blue-200 to-white bg-clip-text text-transparent">Online</span>
+                Teach the World Online.<br />
+                <span className="text-blue-200 bg-gradient-to-r from-blue-200 to-white bg-clip-text text-transparent">Earn on Your Terms.</span>
               </h1>
               <p className="text-xl mb-8 text-blue-100 leading-relaxed">
                 Join thousands of educators creating impactful online courses and building sustainable income streams through teaching.
