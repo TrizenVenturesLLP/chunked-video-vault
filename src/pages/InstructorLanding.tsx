@@ -170,7 +170,7 @@ const InstructorLanding = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
               <h1 className="text-6xl font-bold mb-6 leading-tight">
-                Teach the World Online.<br />
+                Teach the World<br />
                 <span className="text-blue-200 bg-gradient-to-r from-blue-200 to-white bg-clip-text text-transparent">Earn on Your Terms.</span>
               </h1>
               <p className="text-xl mb-8 text-blue-100 leading-relaxed">
