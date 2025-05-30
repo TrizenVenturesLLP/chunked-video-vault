@@ -169,18 +169,18 @@ const InstructorLanding = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
-              <h1 className="text-5xl font-bold mb-6 leading-tight">
-                Inspire Learners.<br />
-                <span className="text-blue-200">Earn on Your Terms.</span>
+              <h1 className="text-6xl font-bold mb-6 leading-tight">
+                Teach the World<br />
+                <span className="text-blue-200 bg-gradient-to-r from-blue-200 to-white bg-clip-text text-transparent">Online</span>
               </h1>
-              <p className="text-xl mb-8 text-blue-100">
+              <p className="text-xl mb-8 text-blue-100 leading-relaxed">
                 Join thousands of educators creating impactful online courses and building sustainable income streams through teaching.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button 
                   size="lg"
                   onClick={() => navigate('/instructor-signup')}
-                  className="bg-white text-[#3F2B96] hover:bg-gray-100 text-lg px-8 py-4"
+                  className="bg-white text-[#3F2B96] hover:bg-gray-100 text-lg px-8 py-4 font-semibold shadow-lg transform hover:scale-105 transition-all duration-200"
                 >
                   Start Teaching Today
                   <ArrowRight className="ml-2 h-5 w-5" />
@@ -188,7 +188,7 @@ const InstructorLanding = () => {
                 <Button 
                   size="lg"
                   onClick={() => navigate('/login')}
-                  className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-[#3F2B96] text-lg px-8 py-4"
+                  className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-[#3F2B96] text-lg px-8 py-4 font-semibold transition-all duration-200"
                 >
                   Login
                 </Button>
@@ -419,7 +419,7 @@ const InstructorLanding = () => {
             <Button 
               size="lg"
               onClick={() => navigate('/instructor-signup')}
-              className="bg-[#3F2B96] hover:bg-[#5b44ad] text-lg px-8 py-4"
+              className="bg-[#3F2B96] hover:bg-[#5b44ad] text-lg px-8 py-4 font-semibold shadow-lg transform hover:scale-105 transition-all duration-200"
             >
               Start Teaching Today
               <ArrowRight className="ml-2 h-5 w-5" />
@@ -428,7 +428,7 @@ const InstructorLanding = () => {
               size="lg"
               variant="outline"
               onClick={() => navigate('/login')}
-              className="border-[#3F2B96] text-[#3F2B96] hover:bg-[#3F2B96] hover:text-white text-lg px-8 py-4"
+              className="border-[#3F2B96] text-[#3F2B96] hover:bg-[#3F2B96] hover:text-white text-lg px-8 py-4 font-semibold transition-all duration-200"
             >
               Already have an account? Login
             </Button>
