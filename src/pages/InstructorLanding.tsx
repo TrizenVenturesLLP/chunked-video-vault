@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -20,6 +19,14 @@ import {
 
 const InstructorLanding = () => {
   const navigate = useNavigate();
+
+  const navItems = [
+    { name: 'Research', href: '#research' },
+    { name: 'Consulting', href: '#consulting' },
+    { name: 'Training', href: '#training' },
+    { name: 'Insights', href: '#insights' },
+    { name: 'Careers', href: '#careers' }
+  ];
 
   const benefits = [
     {
@@ -124,6 +131,20 @@ const InstructorLanding = () => {
                 className="h-20 w-auto"
               />
             </div>
+            
+            {/* Navigation Menu */}
+            <nav className="hidden md:flex items-center space-x-8">
+              {navItems.map((item) => (
+                <a
+                  key={item.name}
+                  href={item.href}
+                  className="text-gray-700 hover:text-[#3F2B96] transition-colors font-medium"
+                >
+                  {item.name}
+                </a>
+              ))}
+            </nav>
+            
             <div className="flex items-center space-x-4">
               <Button 
                 variant="ghost" 
