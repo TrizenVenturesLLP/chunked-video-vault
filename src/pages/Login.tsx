@@ -92,11 +92,10 @@ const Login = () => {
             {/* Logo */}
             <Link to="/" className="flex items-center space-x-2">
               <img 
-                src="/logo.png" 
+                src="/lovable-uploads/feba2167-456e-4e3d-b943-30361d3be552.png" 
                 alt="TRIZEN Logo" 
                 className="h-8 w-8"
               />
-              <span className="text-xl font-bold text-indigo-700">TRIZEN</span>
             </Link>
 
             {/* Desktop Navigation */}
