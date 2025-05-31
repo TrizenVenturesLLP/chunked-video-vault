@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff, Menu, X } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import {
   Form,
   FormControl,
@@ -42,7 +42,6 @@ const InstructorSignup = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const form = useForm<InstructorFormValues>({
     resolver: zodResolver(instructorFormSchema),
@@ -95,104 +94,37 @@ const InstructorSignup = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
-      {/* Fixed Navbar */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            {/* Logo */}
-            <Link to="/" className="flex items-center space-x-2">
-              <img 
-                src="/logo.png" 
-                alt="TRIZEN Logo" 
-                className="h-8 w-8"
-              />
-              <span className="text-xl font-bold text-indigo-700">TRIZEN</span>
-            </Link>
-
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center space-x-8">
-              <Link to="/" className="text-gray-600 hover:text-indigo-700 transition-colors">
-                Home
-              </Link>
-              <Link to="/instructor-signup" className="text-gray-600 hover:text-indigo-700 transition-colors">
-                Become an Instructor
-              </Link>
-              <Link to="/login" className="bg-indigo-700 text-white px-4 py-2 rounded-lg hover:bg-indigo-800 transition-colors">
-                Login
-              </Link>
-            </div>
-
-            {/* Mobile menu button */}
-            <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="md:hidden p-2 rounded-md text-gray-600 hover:text-indigo-700 hover:bg-gray-100"
-            >
-              {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-            </button>
-          </div>
-        </div>
-
-        {/* Mobile Navigation */}
-        {isMobileMenuOpen && (
-          <div className="md:hidden bg-white border-t border-gray-200">
-            <div className="px-2 pt-2 pb-3 space-y-1">
-              <Link
-                to="/"
-                className="block px-3 py-2 text-gray-600 hover:text-indigo-700 hover:bg-gray-50 rounded-md"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                Home
-              </Link>
-              <Link
-                to="/instructor-signup"
-                className="block px-3 py-2 text-gray-600 hover:text-indigo-700 hover:bg-gray-50 rounded-md"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                Become an Instructor
-              </Link>
-              <Link
-                to="/login"
-                className="block px-3 py-2 bg-indigo-700 text-white rounded-md hover:bg-indigo-800"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                Login
-              </Link>
-            </div>
-          </div>
-        )}
-      </nav>
-
       {/* Main Content */}
-      <div className="pt-16 flex flex-col items-center justify-center min-h-screen px-4 py-8">
+      <div className="flex flex-col items-center justify-center min-h-screen px-4 py-8">
         <div className="w-full max-w-md">
-          <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
-            <CardHeader className="text-center pb-2">
+          <Card className="shadow-2xl border-0 bg-white/95 backdrop-blur-sm">
+            <CardHeader className="text-center pb-6">
               {/* Logo in form */}
-              <div className="mx-auto mb-4">
+              <div className="mx-auto mb-6">
                 <img 
-                  src="/logo.png" 
+                  src="/lovable-uploads/feba2167-456e-4e3d-b943-30361d3be552.png" 
                   alt="TRIZEN Logo" 
-                  className="h-16 w-16 mx-auto"
+                  className="h-20 w-20 mx-auto object-contain"
                 />
               </div>
-              <CardTitle className="text-2xl font-bold text-gray-900">Become an Instructor</CardTitle>
-              <CardDescription className="text-gray-600">
+              <CardTitle className="text-3xl font-bold text-gray-900 mb-2">Become an Instructor</CardTitle>
+              <CardDescription className="text-gray-600 text-base">
                 Join our teaching community and share your expertise
               </CardDescription>
             </CardHeader>
-            <CardContent className="pt-6">
+            <CardContent className="pt-2">
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+                <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-5">
                   <FormField
                     control={form.control}
                     name="name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-gray-700">Full Name</FormLabel>
+                        <FormLabel className="text-gray-700 font-medium">Full Name</FormLabel>
                         <FormControl>
                           <Input 
                             placeholder="John Doe" 
-                            className="h-11 border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                            className="h-11 border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 bg-gray-50 focus:bg-white transition-colors"
                             {...field} 
                           />
                         </FormControl>
@@ -206,12 +138,12 @@ const InstructorSignup = () => {
                     name="email"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-gray-700">Email</FormLabel>
+                        <FormLabel className="text-gray-700 font-medium">Email Address</FormLabel>
                         <FormControl>
                           <Input 
                             type="email" 
                             placeholder="john@example.com" 
-                            className="h-11 border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                            className="h-11 border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 bg-gray-50 focus:bg-white transition-colors"
                             {...field} 
                           />
                         </FormControl>
@@ -225,11 +157,11 @@ const InstructorSignup = () => {
                     name="specialty"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-gray-700">Specialty</FormLabel>
+                        <FormLabel className="text-gray-700 font-medium">Specialty</FormLabel>
                         <FormControl>
                           <Input 
                             placeholder="e.g., Web Development, Data Science" 
-                            className="h-11 border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                            className="h-11 border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 bg-gray-50 focus:bg-white transition-colors"
                             {...field} 
                           />
                         </FormControl>
@@ -243,13 +175,13 @@ const InstructorSignup = () => {
                     name="experience"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-gray-700">Years of Experience</FormLabel>
+                        <FormLabel className="text-gray-700 font-medium">Years of Experience</FormLabel>
                         <FormControl>
                           <Input 
                             type="number" 
                             min="0" 
                             placeholder="e.g., 5" 
-                            className="h-11 border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                            className="h-11 border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 bg-gray-50 focus:bg-white transition-colors"
                             {...field} 
                           />
                         </FormControl>
@@ -263,13 +195,13 @@ const InstructorSignup = () => {
                     name="password"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-gray-700">Password</FormLabel>
+                        <FormLabel className="text-gray-700 font-medium">Password</FormLabel>
                         <FormControl>
                           <div className="relative">
                             <Input
                               type={showPassword ? "text" : "password"}
                               placeholder="••••••••"
-                              className="h-11 border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 pr-12"
+                              className="h-11 border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 pr-12 bg-gray-50 focus:bg-white transition-colors"
                               {...field}
                             />
                             <Button
@@ -293,13 +225,13 @@ const InstructorSignup = () => {
                     name="confirmPassword"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-gray-700">Confirm Password</FormLabel>
+                        <FormLabel className="text-gray-700 font-medium">Confirm Password</FormLabel>
                         <FormControl>
                           <div className="relative">
                             <Input
                               type={showConfirmPassword ? "text" : "password"}
                               placeholder="••••••••"
-                              className="h-11 border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 pr-12"
+                              className="h-11 border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 pr-12 bg-gray-50 focus:bg-white transition-colors"
                               {...field}
                             />
                             <Button
@@ -320,7 +252,7 @@ const InstructorSignup = () => {
                   
                   <Button 
                     type="submit" 
-                    className="w-full h-12 bg-indigo-700 hover:bg-indigo-800 text-white font-medium mt-6" 
+                    className="w-full h-12 bg-indigo-700 hover:bg-indigo-800 text-white font-semibold text-base shadow-lg hover:shadow-xl transition-all duration-200 mt-6" 
                     disabled={isLoading}
                   >
                     {isLoading ? 'Submitting Application...' : 'Submit Application'}
@@ -328,10 +260,10 @@ const InstructorSignup = () => {
                 </form>
               </Form>
               
-              <div className="mt-6 text-center text-sm">
+              <div className="mt-8 text-center text-sm">
                 <p className="text-gray-600">
                   Already have an account?{' '}
-                  <Link to="/login" className="text-indigo-600 hover:text-indigo-500 hover:underline font-medium">
+                  <Link to="/login" className="text-indigo-600 hover:text-indigo-700 hover:underline font-semibold">
                     Login
                   </Link>
                 </p>
