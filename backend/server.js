@@ -5,6 +5,8 @@ import dotenv from 'dotenv';
 import videoRouter from './routes/video.js';
 import authRouter from './routes/auth.js';
 import courseRouter from './routes/course.js';
+import messageRouter from './routes/message.js';
+import quizRouter from './routes/quiz.js';
 import path from 'path';
 import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
@@ -13,6 +15,7 @@ import bcrypt from 'bcrypt';
 import User from './models/User.js'; // Make sure this path is correct
 import axios from 'axios';
 import crypto from 'crypto';
+import discussionRoutes from './routes/discussion.js';
 
 // Load environment variables
 dotenv.config();
@@ -21,8 +24,7 @@ const app = express();
 
 // CORS Configuration
 const corsOptions = {
-  // origin: 'https://instructor.lms.trizenventures.com',
-  origin: '*',
+  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
@@ -39,7 +41,7 @@ app.options('*', cors(corsOptions));
 // Connect to MongoDB with improved error handling
 const connectDB = async () => {
   try {
-    await mongoose.connect(process.env.MONGODB_URL);
+    await mongoose.connect(process.env.MONGODB_URL || 'mongodb://localhost:27017/chunked-video-vault');
     console.log('MongoDB connected successfully');
   } catch (err) {
     console.error('MongoDB connection error:', err);
@@ -251,8 +253,11 @@ app.put('/api/user/password', authenticateToken, async (req, res) => {
 
 // API routes
 app.use('/api/auth', authRouter);
-app.use('/api', videoRouter);
 app.use('/api', courseRouter);
+app.use('/api', messageRouter);
+app.use('/api', videoRouter);
+app.use('/api', discussionRoutes);
+app.use('/api', quizRouter);
 
 const port = process.env.PORT || 5001;
 app.listen(port, () => {

@@ -34,6 +34,10 @@ const userCourseSchema = new mongoose.Schema({
     type: [Number],
     default: []
   },
+  daysCompletedPerDuration: {
+    type: String,
+    default: '0/0'
+  },
   updatedAt: {
     type: Date,
     default: Date.now

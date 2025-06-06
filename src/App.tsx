@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Routes, Route, BrowserRouter, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -22,6 +21,7 @@ import NotFound from './pages/NotFound';
 import InstructorGuidelines from './pages/instructor/InstructorGuidelines';
 import FAQ from './pages/instructor/FAQ';
 import Support from './pages/instructor/Support';
+import Leaderboard from './pages/instructor/Leaderboard';
 
 const queryClient = new QueryClient();
 
@@ -68,6 +68,7 @@ const App = () => {
               <Route path="edit-course/:courseId" element={<EditCourse />} />
               <Route path="courses/:courseId/students" element={<Students />} />
               <Route path="students" element={<Students />} />
+              <Route path="leaderboard" element={<Leaderboard />} />
               <Route path="assessments" element={<Assessments />} />
               <Route path="live-sessions" element={<LiveSessions />} />
               <Route path="messages" element={<Messages />} />

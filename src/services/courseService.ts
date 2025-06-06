@@ -295,11 +295,26 @@ export const useUpdateCourse = () => {
   return useMutation({
     mutationFn: async ({ courseId, courseData }: { courseId: string, courseData: Partial<Course> }) => {
       try {
-        const response = await axios.put(`/api/courses/${courseId}`, courseData);
+        // Check authentication token
+        const token = localStorage.getItem('auth_token');
+        if (!token) {
+          throw new Error('Authentication required. Please log in.');
+        }
+
+        const response = await axios.put(`/api/courses/${courseId}`, courseData, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
         return response.data.course;
-      } catch (error) {
+      } catch (error: any) {
         console.error('Failed to update course:', error);
-        throw new Error('Failed to update course. Please try again.');
+        const errorMessage = error.response?.data?.message || 'Failed to update course';
+        if (error.response?.data?.debug) {
+          console.debug('Permission debug info:', error.response.data.debug);
+        }
+        throw new Error(errorMessage);
       }
     },
     onSuccess: (_, variables) => {
@@ -315,11 +330,26 @@ export const useDeleteCourse = () => {
   return useMutation({
     mutationFn: async (courseId: string) => {
       try {
-        await axios.delete(`/api/courses/${courseId}`);
-        return { success: true };
-      } catch (error) {
+        // Check authentication token
+        const token = localStorage.getItem('auth_token');
+        if (!token) {
+          throw new Error('Authentication required. Please log in.');
+        }
+
+        const response = await axios.delete(`/api/courses/${courseId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        return response.data;
+      } catch (error: any) {
         console.error('Failed to delete course:', error);
-        throw new Error('Failed to delete course. Please try again.');
+        const errorMessage = error.response?.data?.message || 'Failed to delete course';
+        if (error.response?.data?.debug) {
+          console.debug('Permission debug info:', error.response.data.debug);
+        }
+        throw new Error(errorMessage);
       }
     },
     onSuccess: () => {
@@ -351,6 +381,8 @@ export interface EnrolledUser {
   enrolledAt: string;
   lastAccessedAt: string;
   completedDays: number[];
+  daysCompletedPerDuration: string;
+  courseUrl: string;
 }
 
 export interface CourseEnrollments {
@@ -365,7 +397,30 @@ export const useEnrolledUsers = (courseId?: string) => {
       if (!courseId || courseId === 'all') return null;
       try {
         const response = await axios.get(`/api/courses/${courseId}/enrolled-users`);
-        return response.data as CourseEnrollments;
+        // Debug log
+        console.log('Raw API response:', response.data);
+        
+        const data = response.data;
+        // Transform the data to ensure daysCompletedPerDuration is included
+        const transformedData = {
+          courseId: data.courseId,
+          enrolledUsers: data.enrolledUsers.map((user: any) => {
+            console.log('Processing user data:', user);
+            return {
+              _id: user._id,
+              userId: user.userId,
+              progress: user.progress || 0,
+              status: user.status || 'enrolled',
+              enrolledAt: user.enrolledAt,
+              lastAccessedAt: user.lastAccessedAt,
+              completedDays: user.completedDays || [],
+              daysCompletedPerDuration: user.daysCompletedPerDuration || '0/0',
+              courseUrl: user.courseUrl || ''
+            };
+          })
+        };
+        console.log('Transformed data:', transformedData);
+        return transformedData as CourseEnrollments;
       } catch (error) {
         console.error('Error fetching enrolled users:', error);
         throw error;
@@ -381,26 +436,33 @@ export const useAllEnrolledUsers = (courseIds: string[]) => {
     queryFn: async () => {
       if (!courseIds.length) return [];
       try {
-        // Fetch enrolled users for all courses in parallel
         const responses = await Promise.all(
           courseIds.map(async (courseId) => {
             const response = await axios.get(`/api/courses/${courseId}/enrolled-users`);
-            const data = response.data as CourseEnrollments;
-            // Add courseTitle from the course data
+            const data = response.data;
+            // Debug log
+            console.log(`Raw API response for course ${courseId}:`, data);
+            
             return {
               ...data,
-              enrolledUsers: data.enrolledUsers.map(user => ({
-                ...user,
-                courseId: data.courseId
-              }))
+              enrolledUsers: data.enrolledUsers.map((user: any) => {
+                console.log('Processing user data in all enrollments:', user);
+                return {
+                  ...user,
+                  courseId: data.courseId,
+                  daysCompletedPerDuration: user.daysCompletedPerDuration || '0/0'
+                };
+              })
             };
           })
         );
         
-        // Combine all enrolled users into a single array
-        return responses.reduce((acc, curr) => {
+        const combinedUsers = responses.reduce((acc, curr) => {
           return [...acc, ...curr.enrolledUsers];
         }, [] as (EnrolledUser & { courseId: string })[]);
+        
+        console.log('Combined users data:', combinedUsers);
+        return combinedUsers;
       } catch (error) {
         console.error('Error fetching all enrolled users:', error);
         throw error;

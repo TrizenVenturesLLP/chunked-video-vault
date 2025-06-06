@@ -8,6 +8,7 @@ import {
   LogOut,
   Video,
   Award,
+  Trophy,
   HelpCircle,
   FileText,
   Headphones
@@ -49,6 +50,7 @@ const Sidebar = ({ isOpen, onClose, onLogout }: SidebarProps) => {
     { name: 'Dashboard', href: '/instructor', icon: BarChart2 },
     { name: 'Courses', href: '/instructor/courses', icon: BookOpen },
     { name: 'Students', href: '/instructor/students', icon: Users },
+    { name: 'Leaderboard', href: '/instructor/leaderboard', icon: Trophy },
     { name: 'Assessments', href: '/instructor/assessments', icon: Award },
     { name: 'Live Sessions', href: '/instructor/live-sessions', icon: Video },
     { name: 'Messages', href: '/instructor/messages', icon: MessageSquare },
